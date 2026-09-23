@@ -9,8 +9,8 @@ export async function showSettingsUI(player) {
     const PlayerStore = Kernel.get("playerStore")
 
     // Load current settings
-    const tpaEnabled = PlayerStore.get(player, "settings:tpa") !== false
-    const scoreboardVisible = PlayerStore.get(player, "settings:scoreboard") !== false
+    const tpaEnabled = PlayerStore?.get ? PlayerStore.get(player, "settings:tpa") !== false : true
+    const scoreboardVisible = PlayerStore?.get ? PlayerStore.get(player, "settings:scoreboard") !== false : true
 
     const form = new Kernel.ModalFormData()
         .title("\u00A76\u00A7lPlayer Settings")
@@ -24,8 +24,10 @@ export async function showSettingsUI(player) {
     const newScoreboard = Boolean(response.formValues[1])
 
     // Save settings
-    PlayerStore.set(player, "settings:tpa", newTpa)
-    PlayerStore.set(player, "settings:scoreboard", newScoreboard)
+    if (PlayerStore?.set) {
+        PlayerStore.set(player, "settings:tpa", newTpa)
+        PlayerStore.set(player, "settings:scoreboard", newScoreboard)
+    }
 
     // Apply scoreboard visibility
     if (!newScoreboard) {

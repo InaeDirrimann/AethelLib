@@ -10,6 +10,10 @@ import { UIUtils } from "../UIUtils.js"
 
 export async function showHomeUI(player) {
     const HomeStore = Kernel.get("homeStore")
+    if (!HomeStore) {
+        player.sendMessage("\u00A7c[Error] Home service is unavailable.");
+        return;
+    }
     const homes = await HomeStore.getHomes(player)
     const homeNames = Object.keys(homes)
 

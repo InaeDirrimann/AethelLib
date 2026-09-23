@@ -1,4 +1,5 @@
 import { Kernel } from "../../core/Kernel.js"
+import { CommandRegistry as StaticRegistry } from "../base/CommandRegistry.js"
 
 // ----------------------------------------------------------------------------
 // | object: HelpCommand                                                      |
@@ -22,7 +23,7 @@ export const HelpCommand = {
     // | routes the help request either to the full list or a specific command doc.|
     // ----------------------------------------------------------------------------
     execute(_data, player, args) {
-        const CommandRegistry = Kernel.get("commandRegistry")
+        const CommandRegistry = Kernel.get("commandRegistry") || StaticRegistry
         const topic = args[0]?.toLowerCase()
 
         if (!topic) {
@@ -61,6 +62,10 @@ export const HelpCommand = {
     },
 
     _showAllCommands(player, Registry) {
+        if (!Registry || typeof Registry.getAll !== "function") {
+            player.sendMessage("\u00A7c[Error] Command registry is unavailable.");
+            return;
+        }
         const PermissionManager = Kernel.get("permissions")
         const commands = Registry.getAll()
         const categoryMap = new Map()
@@ -69,7 +74,7 @@ export const HelpCommand = {
             if (name.includes(":")) continue;
             const cmd = Registry.get(name)
             if (!cmd) continue;
-            if (cmd.permission && !PermissionManager.hasPermission(player, cmd.permission)) continue;
+            if (cmd.permission && PermissionManager && !PermissionManager.hasPermission(player, cmd.permission)) continue;
 
             const cat = (cmd.category || "General").toUpperCase();
             if (!categoryMap.has(cat)) {
@@ -109,6 +114,10 @@ export const HelpCommand = {
     },
 
     _showCategoryHelp(player, Registry, categoryName) {
+        if (!Registry || typeof Registry.getAll !== "function") {
+            player.sendMessage("\u00A7c[Error] Command registry is unavailable.");
+            return;
+        }
         const PermissionManager = Kernel.get("permissions")
         const commands = Registry.getAll()
         const targetCat = categoryName.toUpperCase()
@@ -122,7 +131,7 @@ export const HelpCommand = {
             if (name.includes(":")) continue;
             const cmd = Registry.get(name)
             if (!cmd) continue;
-            if (cmd.permission && !PermissionManager.hasPermission(player, cmd.permission)) continue;
+            if (cmd.permission && PermissionManager && !PermissionManager.hasPermission(player, cmd.permission)) continue;
 
             const cat = (cmd.category || "General").toUpperCase();
             if (cat === targetCat) {

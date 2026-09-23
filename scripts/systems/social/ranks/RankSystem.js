@@ -242,12 +242,12 @@ export const RankSystem = {
      */
     getRank: (tag) => {
         const RankStore = Kernel.get("rankStore")
-        return RankStore.getRank(tag)
+        return RankStore ? RankStore.getRank(tag) : null
     },
 
     getAllRanks: () => {
         const RankStore = Kernel.get("rankStore")
-        return RankStore.getAllRanks()
+        return RankStore ? RankStore.getAllRanks() : {}
     },
 
     /* 
@@ -255,7 +255,7 @@ export const RankSystem = {
      */
     getPermission: (player, key) => {
         const PermissionManager = Kernel.get("permissions")
-        return PermissionManager.getPermission(player, key)
+        return PermissionManager ? PermissionManager.getPermission(player, key) : null
     },
 
     /* 

@@ -179,7 +179,11 @@ export const ShopCartCommand = {
     ],
 
     execute(_data, player, args) {
-        const action = args[0].toLowerCase();
+        const action = args[0]?.toLowerCase();
+        if (!action) {
+            player.sendMessage(`${Lang.PREFIX}§cUsage: ${this.usage}`);
+            return;
+        }
         const itemInput = args[1];
         const quantity = args[2] || 1;
 

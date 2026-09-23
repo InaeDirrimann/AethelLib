@@ -79,6 +79,10 @@ export function createClaim(player, location, radius = 1) {
  */
 export function removeClaim(player, location) {
     const ClaimStore = Kernel.get("claimStore")
+    if (!ClaimStore) {
+        player.sendMessage("\u00A7c\u00A7l» \u00A77Claim system is currently unavailable.");
+        return false;
+    }
     const chunkKey = ClaimStore.locationToChunkKey(location)
     const playerId = player.id
 

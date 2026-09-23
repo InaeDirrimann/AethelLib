@@ -1,4 +1,4 @@
-import { Kernel } from "../../core/Kernel.js"
+import { BroadcastStore } from "../../systems/broadcasts/BroadcastStore.js"
 
 // ----------------------------------------------------------------------------
 // | object: BroadcastResetCommand                                            |
@@ -19,19 +19,14 @@ export const BroadcastResetCommand = {
 
     // ----------------------------------------------------------------------------
     // | method: execute                                                          |
-    // | the purge vector. identifies the broadcast store keys and wipes them.     |
+    // | the purge vector. resets broadcast configuration to defaults.            |
     // ----------------------------------------------------------------------------
     execute(_data, player, _args) {
-        // resolve the persistent stores from the kernel.
-        const WorldStore = Kernel.get("worldStore")
-        const StoreKeys = Kernel.get("keys")
-
-        // step 1: absolute purge.
-        // overwrite the persistent list with an empty array.
-        WorldStore.set(StoreKeys.broadcastList(), [])
-        
-        // step 2: feedback delivery.
-        player.sendMessage("\u00A7a\u00A7l» \u00A7fBroadcast system has been reset.");
-        player.sendMessage("\u00A77All custom broadcasts have been cleared.");
+        try {
+            BroadcastStore.setConfig(BroadcastStore.getDefaultConfig());
+            player.sendMessage("\u00A7a\u00A7l» \u00A7fBroadcast system has been reset to defaults.");
+        } catch (e) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to reset broadcast configuration.");
+        }
     }
 }

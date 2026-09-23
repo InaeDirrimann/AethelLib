@@ -4,6 +4,7 @@ import { getItemPrice, getItemDisplayName } from "./ShopPrices.js";
 class ShopCart {
     getCart(player) {
         const PlayerStore = Kernel.get("playerStore");
+        if (!PlayerStore) return new Map();
         const data = PlayerStore.get(player, "shop:cart");
         if (!data) return new Map();
         return new Map(Object.entries(data));
@@ -11,6 +12,7 @@ class ShopCart {
 
     saveCart(player, cartMap) {
         const PlayerStore = Kernel.get("playerStore");
+        if (!PlayerStore) return;
         const obj = Object.fromEntries(cartMap);
         PlayerStore.set(player, "shop:cart", obj);
     }

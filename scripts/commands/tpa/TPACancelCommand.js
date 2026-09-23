@@ -28,6 +28,10 @@ export const TPACancelCommand = {
     async execute(_data, player, _args) {
         // resolve the handshake registry from the kernel.
         const TpaHandshake = Kernel.get("tpaHandshake")
+        if (!TpaHandshake) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77TPA service is currently unavailable.")
+            return
+        }
         // find the most recent request sent by this player.
         const request = TpaHandshake.getLatestRequestFrom(player.id)
         

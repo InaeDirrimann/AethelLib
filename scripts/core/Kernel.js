@@ -72,13 +72,28 @@ export class Kernel {
 
     // Native type proxies
     static get ItemStack() { return mc.ItemStack; }
-    static get EntityComponentTypes() { return mc.EntityComponentTypes; }
+    static get EntityComponentTypes() {
+        return mc.EntityComponentTypes || {
+            Inventory: "minecraft:inventory",
+            Equippable: "minecraft:equippable",
+            Health: "minecraft:health"
+        };
+    }
     static get SignSide() { return mc.SignSide; }
     static get CustomCommandStatus() { return mc.CustomCommandStatus; }
     static get CustomCommandParamType() { return mc.CustomCommandParamType; }
     static get CommandPermissionLevel() { return mc.CommandPermissionLevel; }
     static get GameMode() { return mc.GameMode; }
-    static get EquipmentSlot() { return mc.EquipmentSlot; }
+    static get EquipmentSlot() {
+        return mc.EquipmentSlot || {
+            Head: "Head",
+            Chest: "Chest",
+            Legs: "Legs",
+            Feet: "Feet",
+            Offhand: "Offhand",
+            Mainhand: "Mainhand"
+        };
+    }
     static get BlockPermutation() { return mc.BlockPermutation; }
     static get BlockComponentTypes() { return mc.BlockComponentTypes; }
     static get InputPermissionCategory() { return mc.InputPermissionCategory; }

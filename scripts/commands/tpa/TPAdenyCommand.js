@@ -26,9 +26,11 @@ export const TPAdenyCommand = {
     // | entry point for handshake rejection. delegates to the service.            |
     // ----------------------------------------------------------------------------
     async execute(_data, player, _args) {
-        // resolve the service and trigger the denial logic.
-        // the service handles notifying the requester of the rejection.
         const TpaService = Kernel.get("tpaService")
+        if (!TpaService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77TPA service is currently unavailable.");
+            return;
+        }
         TpaService.denyRequest(player)
     }
 }

@@ -12,7 +12,7 @@ import { UIUtils } from "../UIUtils.js"
  */
 export async function showClaimUI(player) {
     const ClaimStore = Kernel.get("claimStore")
-    const claims = ClaimStore.getPlayerClaims(player.id)
+    const claims = ClaimStore ? ClaimStore.getPlayerClaims(player.id) : []
 
     const form = new Kernel.ActionFormData()
         .title("\u00A7b\u00A7lYour Claims")

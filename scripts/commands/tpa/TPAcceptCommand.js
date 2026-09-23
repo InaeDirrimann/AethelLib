@@ -26,10 +26,11 @@ export const TPAcceptCommand = {
     // | entry point for handshake confirmation. simply delegates to the service.  |
     // ----------------------------------------------------------------------------
     async execute(_data, player, _args) {
-        // resolve the service and trigger the acceptance logic.
-        // the service handles identifying which request to accept and the 
-        // subsequent teleportation sequence.
         const TpaService = Kernel.get("tpaService")
+        if (!TpaService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77TPA service is currently unavailable.");
+            return;
+        }
         TpaService.acceptRequest(player)
     }
 }

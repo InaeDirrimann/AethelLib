@@ -25,7 +25,7 @@ export const AdminReportCommand = {
     async execute(_data, player, _args) {
         // step 1: permission verification.
         const PermissionManager = Kernel.get("permissions")
-        if (!PermissionManager.hasPermission(player, "essentials.admin.reports")) {
+        if (PermissionManager && !PermissionManager.hasPermission(player, "essentials.admin.reports")) {
             player.sendMessage("\u00A7c\u00A7l» \u00A77You do not have permission to view reports.");
             return
         }

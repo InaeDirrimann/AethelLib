@@ -39,6 +39,7 @@ export const EconomyStore = {
 
         const PlayerStore = Kernel.get("playerStore")
         const StoreKeys = Kernel.get("keys")
+        if (!PlayerStore || !StoreKeys) return this.DEFAULT_BALANCE
         
         const balance = PlayerStore.get(player, StoreKeys.money(player.id))
         return typeof balance === 'number' ? Math.round(balance * 100) / 100 : this.DEFAULT_BALANCE

@@ -19,7 +19,7 @@ export const ShopRegistry = {
         if (this._categories) return this._categories;
         
         const Database = Kernel.get("database");
-        const stored = Database.get("shop:categories");
+        const stored = Database ? Database.get("shop:categories") : null;
         
         if (stored) {
             this._categories = new Map(Object.entries(stored));
@@ -40,6 +40,7 @@ export const ShopRegistry = {
 
     _saveCategories() {
         const Database = Kernel.get("database");
+        if (!Database) return;
         const obj = Object.fromEntries(this._categories);
         Database.set("shop:categories", obj);
     },

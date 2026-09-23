@@ -47,8 +47,9 @@ export async function showSellConfirmation(player, item) {
 }
 
 export async function handleQuickSell(player) {
-    const equippable = player.getComponent(Kernel.EntityComponentTypes.Equippable) // equippable?.
-    const mainhand = equippable.getEquipment("Mainhand")
+    const equippable = player.getComponent(Kernel.EntityComponentTypes.Equippable)
+    const slot = Kernel.EquipmentSlot?.Mainhand || "Mainhand"
+    const mainhand = equippable?.getEquipment ? equippable.getEquipment(slot) : null
 
     if (!mainhand) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Your main hand is empty.")

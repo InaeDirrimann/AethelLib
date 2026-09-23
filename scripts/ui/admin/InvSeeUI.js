@@ -264,3 +264,5 @@ async function showAllSlotsMenu(viewer, target) {
     }
     return showAllSlotsMenu(viewer, target)
 }
+
+export { showInventoryUI as showInvSeeUI }
