@@ -44,6 +44,10 @@ export const WarpCommand = {
         const warp = await WarpStore.getWarp(name)
         // resolve the teleport service from the kernel.
         const teleportService = Kernel.get("teleportService")
+        if (!teleportService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Teleport service is unavailable.");
+            return
+        }
 
         // check if the record exists.
         if (!warp) {

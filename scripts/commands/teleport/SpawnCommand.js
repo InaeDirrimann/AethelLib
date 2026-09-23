@@ -27,6 +27,10 @@ export const SpawnCommand = {
         const spawn = await WarpStore.getWarp("spawn")
         // resolve the teleport service from the kernel.
         const teleportService = Kernel.get("teleportService")
+        if (!teleportService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Teleport service is unavailable.");
+            return
+        }
         
         // check if an admin has actually set the spawn location.
         if (!spawn) {

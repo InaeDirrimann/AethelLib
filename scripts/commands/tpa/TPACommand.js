@@ -54,6 +54,10 @@ export const TPACommand = {
         // step 1: initialize handshake.
         // resolve the service from the kernel and send a "to" type request.
         const TpaService = Kernel.get("tpaService")
+        if (!TpaService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77TPA service is unavailable.")
+            return
+        }
         await TpaService.sendRequest(player, targetPlayer, "tpa")
     }
 }

@@ -87,14 +87,14 @@ async function handleBuyNow(player, auction) {
 }
 
 export async function showCreateUI(player) {
-    const equippable = player.getComponent(Kernel.EntityComponentTypes.Equippable) // equippable?.
-    const item = equippable.getEquipment("Mainhand")
+    const equippable = player.getComponent(Kernel.EntityComponentTypes.Equippable)
+    const slot = Kernel.EquipmentSlot?.Mainhand || "Mainhand"
+    const item = equippable?.getEquipment ? equippable.getEquipment(slot) : null
 
     if (!item) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77You must be holding an item to list it.")
         return
     }
-
 
     const form = new Kernel.ModalFormData()
         .title("\u00A76Create Auction")
@@ -107,7 +107,7 @@ export async function showCreateUI(player) {
     if (res.canceled) return
 
     // RE-VERIFY AFTER AWAIT: Check slot hasn't mutated during UI interaction
-    const currentItem = equippable.getEquipment("Mainhand");
+    const currentItem = equippable?.getEquipment ? equippable.getEquipment(slot) : null;
     if (!currentItem || currentItem.typeId !== item.typeId || currentItem.amount !== item.amount) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Transaction aborted: Asset state changed during UI operation.");
         return;

@@ -37,12 +37,13 @@ export const InvSeeCommand = {
         }
 
         // resolve the target player object.
-        const targetName = args.join(" ")
-        const target = PlayerUtils.findPlayer(targetName)
+        const target = typeof args[0] === 'object' && args[0] !== null
+            ? args[0]
+            : PlayerUtils.findPlayer(args.join(" "))
         
         // check if they are online.
         if (!target) {
-            player.sendMessage(`\u00A7c\u00A7l» \u00A77Player '${targetName}' not found.`);
+            player.sendMessage(`\u00A7c\u00A7l» \u00A77Player '${args.join(" ")}' not found.`);
             return
         }
 

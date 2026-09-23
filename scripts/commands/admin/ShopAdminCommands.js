@@ -31,7 +31,8 @@ export const ShopAdminCommands = [
 
             // GET HELD ITEM
             const equippable = player.getComponent(Kernel.EntityComponentTypes.Equippable);
-            const item = equippable?.getEquipment("Mainhand");
+            const slot = Kernel.EquipmentSlot?.Mainhand || "Mainhand";
+            const item = equippable?.getEquipment ? equippable.getEquipment(slot) : null;
 
             if (!item) {
                 player.sendMessage("\u00A7c\u00A7l» \u00A77No asset detected in hand buffer.");

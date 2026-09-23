@@ -33,7 +33,12 @@ export const GoHomeCommand = {
         const TeleportService = Kernel.get("teleportService")
         const rawPlayer = player.__rawEntity__ || player;
 
-        const cdValue = PermissionManager.getPermission(rawPlayer, "home.cooldown") ?? 30
+        if (!TeleportService) {
+            rawPlayer.sendMessage("\u00A7c\u00A7l» \u00A77Teleport service is unavailable.");
+            return
+        }
+
+        const cdValue = PermissionManager ? PermissionManager.getPermission(rawPlayer, "home.cooldown") ?? 30 : 30
         const cd = Number(cdValue) * 20
         const last = cooldowns.get(rawPlayer.id) ?? 0
         
@@ -49,7 +54,7 @@ export const GoHomeCommand = {
             return
         }
 
-        const waitTime = Number(PermissionManager.getPermission(rawPlayer, "teleport.wait") ?? 5)
+        const waitTime = Number((PermissionManager ? PermissionManager.getPermission(rawPlayer, "teleport.wait") : 5) ?? 5)
         const targetLocation = { x: home.x + 0.5, y: home.y, z: home.z + 0.5 }
 
         if (waitTime > 0) {

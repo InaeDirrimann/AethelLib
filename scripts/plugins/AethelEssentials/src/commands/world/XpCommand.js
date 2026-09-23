@@ -46,18 +46,24 @@ export const XpCommand = {
             const rawPlayer = player.__rawEntity__ || player;
             const absAmount = Math.abs(amount);
             const action = amount > 0 ? "give" : "take";
-            const cmd = action === "give" ? `xp ${absAmount}L "${rawTarget.name}"` : `xp -${absAmount}L "${rawTarget.name}"`;
 
-            rawPlayer.runCommandAsync(cmd).then(() => {
-                if (rawTarget.id === rawPlayer.id) {
-                    rawPlayer.sendMessage(`§a§l» §7${action === "give" ? "Gave" : "Took"} ${absAmount} levels ${action === "give" ? "to" : "from"} yourself.`);
+            try {
+                if (typeof rawTarget.addLevels === "function") {
+                    rawTarget.addLevels(amount);
                 } else {
-                    rawPlayer.sendMessage(`§a§l» §7${action === "give" ? "Gave" : "Took"} ${absAmount} levels ${action === "give" ? "to" : "from"} ${rawTarget.name}.`);
-                    if (rawTarget.isValid) rawTarget.sendMessage(`§a§l» §7${rawPlayer.name} ${action === "give" ? "gave" : "took"} ${absAmount} levels ${action === "give" ? "to" : "from"} you.`);
+                    const cmd = action === "give" ? `xp ${absAmount}L "${rawTarget.name}"` : `xp -${absAmount}L "${rawTarget.name}"`;
+                    rawPlayer.runCommand(cmd);
                 }
-            }).catch(e => {
-                rawPlayer.sendMessage(`§c§l» §7Failed to execute XP command: ${e.message}`);
-            });
+
+                if (rawTarget.id === rawPlayer.id) {
+                    rawPlayer.sendMessage(`\u00A7a\u00A7l» \u00A77${action === "give" ? "Gave" : "Took"} ${absAmount} levels ${action === "give" ? "to" : "from"} yourself.`);
+                } else {
+                    rawPlayer.sendMessage(`\u00A7a\u00A7l» \u00A77${action === "give" ? "Gave" : "Took"} ${absAmount} levels ${action === "give" ? "to" : "from"} ${rawTarget.name}.`);
+                    if (rawTarget.isValid) rawTarget.sendMessage(`\u00A7a\u00A7l» \u00A77${rawPlayer.name} ${action === "give" ? "gave" : "took"} ${absAmount} levels ${action === "give" ? "to" : "from"} you.`);
+                }
+            } catch (e) {
+                rawPlayer.sendMessage(`\u00A7c\u00A7l» \u00A77Failed to adjust levels: ${e.message}`);
+            }
         } catch (e) {
             player.sendMessage(`§c§l» §7XP command error: ${e.message}`);
         }

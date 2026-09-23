@@ -42,8 +42,9 @@ export class UIUtils {
             // Snappy 3-tick delay to let previous windows close
             await new Promise(resolve => Kernel.system.runTimeout(resolve, 3));
 
-            // loop until chat is fully closed
-            while (true) {
+            // loop until chat is fully closed (capped at 60 retries / ~15s to prevent infinite locks)
+            let retries = 0;
+            while (retries < 60) {
                 if (!player || !player.isValid) {
                     return { canceled: true };
                 }
@@ -58,9 +59,11 @@ export class UIUtils {
                     return response;
                 }
                 
+                retries++;
                 // wait before retry
                 await new Promise(resolve => Kernel.system.runTimeout(resolve, 5));
             }
+            return { canceled: true, cancelationReason: "UserBusy" };
         } catch (error) {
             console.error(`[UIUtils] Form show failed: ${error}`);
             return { canceled: true };

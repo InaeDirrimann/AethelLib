@@ -54,6 +54,10 @@ export const TPAHereCommand = {
         // step 1: initialize handshake.
         // send a "tpahere" type request (target moves to sender).
         const TpaService = Kernel.get("tpaService")
+        if (!TpaService) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77TPA service is unavailable.");
+            return
+        }
         await TpaService.sendRequest(player, targetPlayer, "tpahere")
     }
 }

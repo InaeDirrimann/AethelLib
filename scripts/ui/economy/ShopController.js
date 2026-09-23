@@ -182,7 +182,8 @@ export const ShopController = {
      */
     async executeQuickSell(player) {
         const equip = player.getComponent(Kernel.EntityComponentTypes.Equippable)
-        const mainhand = equip?.getEquipment("Mainhand")
+        const slot = Kernel.EquipmentSlot?.Mainhand || "Mainhand"
+        const mainhand = equip?.getEquipment ? equip.getEquipment(slot) : null
 
         if (!mainhand) {
             return { success: false, message: "\u00A7cYour main hand is empty!" }
@@ -196,7 +197,9 @@ export const ShopController = {
         }
 
         const count = mainhand.amount
-        equip.setEquipment("Mainhand", undefined)
+        if (equip?.setEquipment) {
+            equip.setEquipment(slot, undefined)
+        }
 
         const totalEarned = Math.round(match.sell * count * 100) / 100
         await EconomyStore.addMoney(player, totalEarned)

@@ -1,4 +1,4 @@
-﻿import { Kernel } from "../../core/Kernel.js"
+import { Kernel } from "../../core/Kernel.js"
 import { PlayerUtils } from "../../utils/PlayerUtils.js"
 
 // ----------------------------------------------------------------------------
@@ -55,11 +55,13 @@ export const WhoisCommand = {
         
         // step 2: query individual data points.
         // resolve rank node.
-        const rank = PermissionManager.getHighestRank(target)
+        const rank = PermissionManager ? PermissionManager.getHighestRank(target) : null
         // resolve financial balance.
-        const balance = Economy.getBalance(target)
+        const balance = Economy ? Economy.getBalance(target) : 0
         // resolve TPA availability.
-        const tpaStatus = TpaStore.isEnabled(target.id) ? "\u00A7aEnabled" : "\u00A7cDisabled"
+        const tpaStatus = TpaStore && typeof TpaStore.isEnabled === "function"
+            ? (TpaStore.isEnabled(target.id) ? "\u00A7aEnabled" : "\u00A7cDisabled")
+            : "\u00A77Unknown"
 
         // resolve homes and claims.
         const homes = HomeStore ? await HomeStore.getHomes(target) : {}

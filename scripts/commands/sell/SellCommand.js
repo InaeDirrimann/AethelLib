@@ -98,7 +98,8 @@ function showSellMenu(player) {
 function quickSell(player) {
     try {
         // fetch item from current slot.
-        const selectedItem = player.getComponent(Kernel.EntityComponentTypes.Inventory).container.getItem(player.selectedSlotIndex)
+        const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
+        const selectedItem = inv ? inv.getItem(player.selectedSlotIndex) : null
         if (!selectedItem) {
             player.sendMessage("\u00A7c\u00A7l» \u00A77No item in hand.");
             return

@@ -119,6 +119,11 @@ export const ClaimCommand = {
         const ClaimStore = Kernel.get("claimStore");
         const PermissionManager = Kernel.get("permissions");
 
+        if (!ClaimStore) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Claim system is currently unavailable.");
+            return;
+        }
+
         // get current ownership count.
         const currentClaims = ClaimStore.getPlayerClaims(player.id).length;
         

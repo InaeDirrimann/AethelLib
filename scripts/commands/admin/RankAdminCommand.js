@@ -171,7 +171,7 @@ async function handleAdd(player, args) {
     }
 
 
-    const target = Kernel.world.getAllPlayers().find(p => p.name === playerName)
+    const target = PlayerUtils.findPlayer(playerName)
     if (!target) {
         player.sendMessage(`\u00A7c\u00A7l» \u00A77Player '${playerName}' not found.`);
         return
@@ -196,9 +196,9 @@ async function handleRemove(player, args) {
 
     const [playerName, tag] = args
 
-    const target = Kernel.world.getAllPlayers().find(p => p.name === playerName)
+    const target = PlayerUtils.findPlayer(playerName)
     if (!target) {
-        player.sendMessage(`[Error] Entity '${playerName}' not found in active buffer.`);
+        player.sendMessage(`\u00A7c\u00A7l» \u00A77Player '${playerName}' not found.`);
         return
     }
 

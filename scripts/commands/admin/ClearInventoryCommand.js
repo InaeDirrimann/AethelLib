@@ -19,14 +19,32 @@ export const ClearInventoryCommand = {
             return;
         }
 
+        let cleared = false;
         try {
-            /* try */ finalTarget.runCommand("clear @s");
-            player.sendMessage(`\u00A7a\u00A7l» \u00A7fCleared inventory of \u00A7e${finalTarget.name}\u00A7f.`);
-            if (finalTarget.id !== player.id) {
-                finalTarget.sendMessage(`\u00A7a\u00A7l» \u00A7fYour inventory was cleared by \u00A7e${player.name}\u00A7f.`);
+            const inv = finalTarget.getComponent("minecraft:inventory")?.container;
+            if (inv && typeof inv.clearAll === "function") {
+                inv.clearAll();
+                cleared = true;
             }
-        } catch (e) {
-            player.sendMessage("\u00A7cFailed to clear inventory.");
+            const equip = finalTarget.getComponent("minecraft:equippable");
+            if (equip) {
+                const slots = ["Head", "Chest", "Legs", "Feet", "Offhand", "Mainhand"];
+                for (const slot of slots) {
+                    try { equip.setEquipment(slot, undefined); } catch {}
+                }
+            }
+        } catch {}
+
+        if (!cleared) {
+            try {
+                finalTarget.runCommand("clear @s");
+                cleared = true;
+            } catch {}
+        }
+
+        player.sendMessage(`\u00A7a\u00A7l» \u00A7fCleared inventory of \u00A7e${finalTarget.name}\u00A7f.`);
+        if (finalTarget.id !== player.id) {
+            finalTarget.sendMessage(`\u00A7a\u00A7l» \u00A7fYour inventory was cleared by \u00A7e${player.name}\u00A7f.`);
         }
     }
 };

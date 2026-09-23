@@ -18,9 +18,20 @@ export function spawnFloatingText(entry) {
     try {
         if (!entry.id || activeProjections.has(entry.id)) return
         const dim = Kernel.world.getDimension(entry.dimension)
-        const entity = dim.spawnEntity(/** @type {any} */ ("ael:floating_text"), { x: entry.x, y: entry.y, z: entry.z })
-        entity.nameTag = entry.text
-        activeProjections.set(entry.id, entity)
+        let entity;
+        try {
+            entity = dim.spawnEntity("ael:floating_text", { x: entry.x, y: entry.y, z: entry.z });
+        } catch {
+            entity = dim.spawnEntity("minecraft:armor_stand", { x: entry.x, y: entry.y, z: entry.z });
+            try {
+                entity.addEffect("invisibility", 20000000, { showParticles: false });
+                entity.addTag("ae:floating_text");
+            } catch {}
+        }
+        if (entity) {
+            entity.nameTag = entry.text;
+            activeProjections.set(entry.id, entity);
+        }
     } catch (error) {
         console.error(`Failed to spawn floating text: ${error}`)
     }

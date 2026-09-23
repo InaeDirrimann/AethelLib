@@ -19,13 +19,32 @@ export const HealCommand = {
             return;
         }
 
-        const health = finalTarget.getComponent("minecraft:health");
-        if (health) {
-            health.setCurrentValue(health.effectiveMax);
-            player.sendMessage(`\u00A7a\u00A7l» \u00A7fHealed \u00A7e${finalTarget.name}\u00A7f to full health.`);
-            if (finalTarget.id !== player.id) {
-                finalTarget.sendMessage(`\u00A7a\u00A7l» \u00A7fYou have been healed by \u00A7e${player.name}\u00A7f.`);
+        let healed = false;
+        try {
+            const health = finalTarget.getComponent("minecraft:health");
+            if (health) {
+                if (typeof health.resetToMaxValue === "function") {
+                    health.resetToMaxValue();
+                } else if (typeof health.setCurrentValue === "function") {
+                    health.setCurrentValue(health.effectiveMax ?? 20);
+                }
+                healed = true;
             }
+            if (typeof finalTarget.extinguishFire === "function") {
+                finalTarget.extinguishFire(true);
+            }
+        } catch {}
+
+        if (!healed) {
+            try {
+                finalTarget.runCommand("effect @s instant_health 1 255 true");
+                healed = true;
+            } catch {}
+        }
+
+        player.sendMessage(`\u00A7a\u00A7l» \u00A7fHealed \u00A7e${finalTarget.name}\u00A7f to full health.`);
+        if (finalTarget.id !== player.id) {
+            finalTarget.sendMessage(`\u00A7a\u00A7l» \u00A7fYou have been healed by \u00A7e${player.name}\u00A7f.`);
         }
     }
 };
