@@ -2,6 +2,8 @@ import { Kernel } from "./core/Kernel.js"
 import { init as initEarly } from "./bootstrap/early.js"
 import { init as initCore } from "./bootstrap/core.js"
 import { init as initCommands } from "./bootstrap/commands.js"
+import { initializeSystems } from "./bootstrap/systems.js"
+import { initializeServices } from "./bootstrap/services.js"
 import { pluginDefs } from "./plugins/PluginLoader.js"
 import { PluginManager } from "./core/plugins/PluginManager.js"
 // import { VerificationSuite } from "./utils/VerificationSuite.js"
@@ -44,7 +46,13 @@ Kernel.system.run(async () => {
     // initializes managers (database, cache, etc) and sets up event listeners.
     initCore()
 
-    // stage 2: plugins.
+    // stage 2: foundational game systems (combat, killstreaks, land protection).
+    initializeSystems()
+
+    // stage 3: staggered background services (holograms, scoreboard mirror, etc).
+    initializeServices()
+
+    // stage 4: plugins.
     // boot sequence. strictly ordered to prevent undefined references.
     await PluginManager.enableAll()
 

@@ -1,45 +1,65 @@
 import { Kernel } from "../../core/Kernel.js"
 import { StoreKeys } from "../../core/store/StoreKeys.js"
+import { Configuration } from "../../Configuration.js"
+import { PlayerStore } from "../../core/store/PlayerStore.js"
 
-/*
- * INDUSTRIAL_SPATIAL_ANCHOR_REGISTRY
- * ----------------------------------------------------------------------------
- * A high-performance orchestration layer for entity-specific spatial waypoints 
- * (Homes). Interfaces with the PlayerStore to manage the persistence and 
- * validation of spatial-anchor nodes.
- *
- * PHILOSOPHY: Waypoints are the coordinates of the empire. Use this 
- * registry to manifest and preserve the entity's industrial navigation 
- * manifest.
- */
+const PENDING_CONFIRMATIONS = new Map() // playerId -> { name, timestamp }
+
+Kernel.world.afterEvents.playerLeave.subscribe((ev) => {
+    PENDING_CONFIRMATIONS.delete(ev.playerId)
+})
+
+function resolvePlayerId(player) {
+    if (!player) return null
+    return typeof player === "string" ? player : (player.id || null)
+}
+
 export const HomeStore = {
-    /* 
-     * ENTITY_MANIFEST_QUERY
-     */
     async getHomes(player) {
-        const PlayerStore = Kernel.get("playerStore")
-        return PlayerStore.get(player, StoreKeys.homeList(player.id)) || {}
+        const id = resolvePlayerId(player)
+        if (!id) return {}
+        const store = Kernel.get("playerStore") || PlayerStore
+        return store.get(id, StoreKeys.homeList(id)) || {}
     },
 
-    /* 
-     * ANCHOR_NODE_QUERY
-     */
     async getHome(player, name) {
         const homes = await this.getHomes(player)
         return homes[name] || null
     },
 
-    /* 
-     * ANCHOR_NODE_INJECTION
-     * Calibrates a new spatial-anchor for the entity. Implements an 
-     * industrial-scale limit on the total number of active nodes.
+    /**
+     * Checks if setting this home requires an overwrite confirmation.
+     * Returns true if confirmation is required (first attempt), false if confirmed or new home.
      */
+    async checkOverwriteConfirmation(player, name) {
+        const id = resolvePlayerId(player)
+        if (!id) return false
+
+        const hasExisting = await this.hasHome(player, name)
+        if (!hasExisting) return false
+
+        const pending = PENDING_CONFIRMATIONS.get(id)
+        if (pending && pending.name === name && (Date.now() - pending.timestamp) <= 60000) {
+            PENDING_CONFIRMATIONS.delete(id)
+            return false // Confirmed within 60 seconds
+        }
+
+        PENDING_CONFIRMATIONS.set(id, { name, timestamp: Date.now() })
+        return true // First attempt, needs confirmation
+    },
+
     async setHome(player, name, location, dimension) {
-        if (!name || name.length < 1 || name.length > 16) return false
+        const id = resolvePlayerId(player)
+        if (!id || !name || name.length < 1 || name.length > 16) return false
 
         const homes = await this.getHomes(player)
-        const maxHomes = 10 // INDUSTRIAL_REGISTRY_LIMIT
+        const PM = Kernel.get("permissions")
+        const permLimit = PM ? PM.getPermission(player, "home.limit") : null
+        const maxHomes = (permLimit !== null && permLimit !== undefined && typeof permLimit === "number")
+            ? (permLimit < 0 ? Infinity : permLimit)
+            : (Configuration.MAX_HOMES || 5)
 
+        // Only enforce quota when adding a brand new home (Essentials pattern)
         if (!homes[name] && Object.keys(homes).length >= maxHomes) return false
 
         homes[name] = {
@@ -50,27 +70,24 @@ export const HomeStore = {
             created: Date.now()
         }
 
-        const PlayerStore = Kernel.get("playerStore")
-        return PlayerStore.set(player, StoreKeys.homeList(player.id), homes)
+        const store = Kernel.get("playerStore") || PlayerStore
+        return store.set(id, StoreKeys.homeList(id), homes)
     },
 
-    /* 
-     * ANCHOR_NODE_DECOMMISSION
-     */
     async deleteHome(player, name) {
+        const id = resolvePlayerId(player)
+        if (!id) return false
+
         const homes = await this.getHomes(player)
         if (!homes[name]) return false
         delete homes[name]
-        const PlayerStore = Kernel.get("playerStore")
-        return PlayerStore.set(player, StoreKeys.homeList(player.id), homes)
+        const store = Kernel.get("playerStore") || PlayerStore
+        return store.set(id, StoreKeys.homeList(id), homes)
     },
 
-    /* 
-     * REGISTRY_STATUS_QUERY
-     */
     async hasHome(player, name) {
         const homes = await this.getHomes(player)
-        return homes.hasOwnProperty(name)
+        return Object.prototype.hasOwnProperty.call(homes, name)
     },
 
     async getHomeCount(player) {

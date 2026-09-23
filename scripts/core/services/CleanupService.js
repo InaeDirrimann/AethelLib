@@ -1,4 +1,5 @@
 import { Kernel } from "../Kernel.js";
+import { JournaledDb } from "../datastore/JournaledDatabase.js";
 
 /*
  * INDUSTRIAL_CLEANUP_ORCHESTRATOR
@@ -264,12 +265,11 @@ export class CleanupService {
 
         // Flush JournaledDatabase if available
         try {
-            const { JournaledDb } = require("../../core/datastore/JournaledDatabase.js");
             if (JournaledDb && typeof JournaledDb.flush === "function") {
                 JournaledDb.flush();
             }
-        } catch (_) {
-            // JournaledDatabase may not be loaded
+        } catch (error) {
+            console.error(`[CleanupService] JOURNAL_FLUSH_FAILURE: ${error}`);
         }
 
         // Run cleanup on all registered handlers with force marker

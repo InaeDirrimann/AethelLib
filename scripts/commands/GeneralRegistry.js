@@ -9,7 +9,6 @@ import { ReportCommand } from "./general/ReportCommand.js"
 import { CreditCommand } from "./general/CreditCommand.js"
 import { MenuCommand } from "./general/MenuCommand.js"
 import { BlockCommand } from "./tpa/BlockCommand.js"
-import { ColorCommand } from "./social/ColorCommand.js"
 import { RankCommand } from "./social/ranks/rankCommand.js"
 import { ClaimCommand } from "./general/ClaimCommand.js"
 import { CombatStatusCommand } from "./general/CombatStatusCommand.js"
@@ -65,8 +64,6 @@ export const GeneralRegistry = {
         
         // ignore/block players.
         Registry.register("block", BlockCommand)
-        // chat color selection.
-        Registry.register("color", ColorCommand)
         // rank and title management.
         Registry.register("rank", RankCommand)
         // land protection and claiming.

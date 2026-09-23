@@ -41,7 +41,7 @@ export function createClaim(player, location, radius = 1) {
 
     for (let x = -radius; x <= radius; x++) {
         for (let z = -radius; z <= radius; z++) {
-            const chunkKey = centerChunk.split(',').map((coord, i) => 
+            const chunkKey = centerChunk.split(/[_,]/).map((coord, i) => 
                 parseInt(coord) + (i === 0 ? x : z)
             ).join(',')
             
@@ -55,7 +55,7 @@ export function createClaim(player, location, radius = 1) {
 
     for (let x = -radius; x <= radius; x++) {
         for (let z = -radius; z <= radius; z++) {
-            const chunkKey = centerChunk.split(',').map((coord, i) => 
+            const chunkKey = centerChunk.split(/[_,]/).map((coord, i) => 
                 parseInt(coord) + (i === 0 ? x : z)
             ).join(',')
             

@@ -106,7 +106,7 @@ export async function showCreateUI(player) {
     const res = await UIUtils.showForm(player, form)
     if (res.canceled) return
 
-    // 🔥 RE-VERIFY AFTER AWAIT!
+    // RE-VERIFY AFTER AWAIT: Check slot hasn't mutated during UI interaction
     const currentItem = equippable.getEquipment("Mainhand");
     if (!currentItem || currentItem.typeId !== item.typeId || currentItem.amount !== item.amount) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Transaction aborted: Asset state changed during UI operation.");

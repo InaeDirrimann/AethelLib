@@ -34,7 +34,6 @@ export const PermListCommand = {
             { name: "essentials.calculate", desc: "Allows executing the calculator" },
             { name: "essentials.report", desc: "Allows reporting players" },
             { name: "essentials.tps", desc: "Allows checking server TPS" },
-            { name: "essentials.chat.color", desc: "Allows color-coding chat text" },
             { name: "essentials.admin.inspect", desc: "Inspect player coordinates & tags" },
             { name: "essentials.admin.invsee", desc: "View player inventories" },
             { name: "essentials.admin.ft", desc: "Manage floating texts" },
@@ -49,9 +48,7 @@ export const PermListCommand = {
             { name: "warp.cooldown", desc: "Warp command cooldown (seconds)" },
             { name: "rtp.cooldown", desc: "RTP command cooldown (seconds)" },
             { name: "back.cooldown", desc: "Back command cooldown (seconds)" },
-            { name: "chat.cooldown", desc: "Chat cooldown between messages (ms)" },
-            { name: "chat.color.*", desc: "Access to all chat formatting" },
-            { name: "chat.color.manual", desc: "Allows setting custom tag colors" }
+            { name: "chat.cooldown", desc: "Chat cooldown between messages (ms)" }
         ];
 
         // Header display - styled like AethelLib help

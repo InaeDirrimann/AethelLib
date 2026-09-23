@@ -1,6 +1,8 @@
 import { Kernel } from "../../../core/Kernel.js"
 import { DEFAULT_RANKS } from "../../../data/RankConfig.js"
 import { LifecycleController } from "../../../core/LifecycleController.js"
+import { ColorUtils } from "../../../utils/ColorUtils.js"
+import { RankFormatter } from "./RankFormatter.js"
 
 /*
  * INDUSTRIAL_HIERARCHY_ORCHESTRATOR
@@ -88,6 +90,7 @@ export const RankSystem = {
                         PM.invalidatePlayerCache(playerId);
                     }
                 }
+                refreshPlayerNametag(activePlayer);
             }, 20);
         });
 
@@ -171,6 +174,16 @@ export const RankSystem = {
         // Safety guard: prevent overwriting existing ranks
         if (RankStore.getRank(tag)) return false
 
+        if (rankData.name) {
+            rankData.name = rankData.name.replace(/^\[+|\]+$/g, "").trim();
+        }
+        if (rankData.colorName) {
+            rankData.colorName = ColorUtils.normalizeColorCode(rankData.colorName, "§7");
+        }
+        if (rankData.colorText) {
+            rankData.colorText = ColorUtils.normalizeColorCode(rankData.colorText, "§f");
+        }
+
         const success = RankStore.setRank(tag, rankData)
         if (success) {
             RankStore.addRankToList(tag)
@@ -187,6 +200,17 @@ export const RankSystem = {
     updateRank: (tag, rankData) => {
         const RankStore = Kernel.get("rankStore")
         if (!tag || !rankData) return false
+
+        if (rankData.name) {
+            rankData.name = rankData.name.replace(/^\[+|\]+$/g, "").trim();
+        }
+        if (rankData.colorName) {
+            rankData.colorName = ColorUtils.normalizeColorCode(rankData.colorName, "§7");
+        }
+        if (rankData.colorText) {
+            rankData.colorText = ColorUtils.normalizeColorCode(rankData.colorText, "§f");
+        }
+
         const success = RankStore.setRank(tag, rankData)
         if (success) {
             const PermissionManager = Kernel.get("permissions")
@@ -251,5 +275,15 @@ export const RankSystem = {
         list.push({ tag, expiresAt: Date.now() + durationMs })
         player.setDynamicProperty("ae:tempranks", JSON.stringify(list))
         return true
+    }
+}
+
+export function refreshPlayerNametag(player) {
+    if (!player || !player.isValid) return;
+    const SettingsStore = Kernel.get("settings");
+    if (SettingsStore && SettingsStore.get("showRankOnNameTag") === false) return;
+    const formatted = RankFormatter.formatPlayerNametag(player);
+    if (player.nameTag !== formatted) {
+        player.nameTag = formatted;
     }
 }

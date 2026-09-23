@@ -1,4 +1,4 @@
-﻿import { Kernel } from "../../core/Kernel.js"
+import { Kernel } from "../../core/Kernel.js"
 import { PlayerUtils } from "../../utils/PlayerUtils.js"
 import { ValidationHelper } from "../../utils/ValidationHelper.js"
 
@@ -66,7 +66,7 @@ export const BanCommand = {
                 try {
                     const safeName = ValidationHelper.escapeCommandString(target.name)
                     const safeReason = ValidationHelper.escapeCommandString(reason)
-                    Kernel.world.getDimension("overworld").runCommand(`kick "${safeName}" \u00A7c[BAN]\n\u00A7eREASON: ${safeReason}`)
+                    Kernel.world.getDimension("overworld").runCommandAsync(`kick "${safeName}" \u00A7c[BAN]\n\u00A7eREASON: ${safeReason}`)
                 } catch (error) {
                     console.error(`[BanCommand] SESSION_TERMINATION_FAILURE: ${error}`)
                 }

@@ -1,4 +1,5 @@
 import { showShopUI } from "../../ui/economy/ShopUI.js"
+import { Kernel } from "../../core/Kernel.js"
 
 // ----------------------------------------------------------------------------
 // | object: ShopCommand                                                      |
@@ -8,6 +9,8 @@ import { showShopUI } from "../../ui/economy/ShopUI.js"
 export const ShopCommand = {
     // internal name.
     name: "shop",
+    // aliases for flexible player access.
+    aliases: ["market", "store"],
     // human-readable description.
     description: "Open the server shop menu",
     // syntax guide.
@@ -19,10 +22,9 @@ export const ShopCommand = {
 
     // ----------------------------------------------------------------------------
     // | method: execute                                                          |
-    // | entry point for the shop command. launches the UI handler immediately.   |
+    // | entry point for the shop command. launches the UI handler safely.        |
     // ----------------------------------------------------------------------------
     execute(_data, player, _args) {
-        // no arguments needed, just fire and forget the UI logic.
-        showShopUI(player);
+        Kernel.system.run(() => showShopUI(player));
     }
 }

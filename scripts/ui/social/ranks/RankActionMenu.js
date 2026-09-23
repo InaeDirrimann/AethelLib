@@ -3,6 +3,7 @@ import { UIUtils } from "../../UIUtils.js";
 import { RankSystem } from "../../../systems/social/ranks/RankSystem.js";
 import { Lang } from "../../Lang.js";
 import { SchemaRenderer } from "../../core/SchemaRenderer.js";
+import { ColorUtils } from "../../../utils/ColorUtils.js";
 
 import { RankBasicSchema } from "./schemas/RankBasicSchema.js";
 import { RankCostsSchema } from "./schemas/RankCostsSchema.js";
@@ -90,6 +91,15 @@ export class RankActionMenu {
         }));
 
         return SchemaRenderer.render(player, schema, rank, backCallback, (updated) => {
+            if (updated.name) {
+                updated.name = updated.name.replace(/^\[+|\]+$/g, "").trim();
+            }
+            if (updated.colorName !== undefined) {
+                updated.colorName = ColorUtils.normalizeColorCode(updated.colorName, "§7");
+            }
+            if (updated.colorText !== undefined) {
+                updated.colorText = ColorUtils.normalizeColorCode(updated.colorText, "§f");
+            }
             RankSystem.updateRank(tag, updated);
             player.sendMessage(`§aUpdated basic settings for rank: ${tag}`);
         });

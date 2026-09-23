@@ -1,5 +1,5 @@
 import { Kernel } from "../../../core/Kernel.js"
-import { showInventoryUI } from "../InvSeeUI.js"
+import { showInventoryUI } from "../../../ui/admin/InvSeeUI.js"
 import { showSetMoneyUI } from "./PlayerEconomyUI.js"
 import { showKickUI, showBanUI, showMuteUI } from "./PlayerModerationUI.js"
 import { showHomeListUI, handleTpaToggle } from "./PlayerSpatialUI.js"

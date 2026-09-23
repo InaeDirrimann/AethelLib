@@ -41,7 +41,7 @@ export const EconomyStore = {
         const StoreKeys = Kernel.get("keys")
         
         const balance = PlayerStore.get(player, StoreKeys.money(player.id))
-        return balance !== null ? balance : this.DEFAULT_BALANCE
+        return typeof balance === 'number' ? Math.round(balance * 100) / 100 : this.DEFAULT_BALANCE
     },
 
     // setBalance — forces a player's balance to a specific value. Uses a transaction to avoid race conditions.
@@ -54,8 +54,7 @@ export const EconomyStore = {
         const PlayerStore = Kernel.get("playerStore")
         const StoreKeys = Kernel.get("keys")
 
-        // Pre-compute floored amount once — avoids duplicate Math.floor calls.
-        const finalAmount = Math.floor(amount)
+        const finalAmount = Math.round(amount * 100) / 100
         return await PlayerStore.transaction(player, async () => {
             const success = PlayerStore.set(player, StoreKeys.money(player.id), finalAmount)
             if (success) {
@@ -77,10 +76,9 @@ export const EconomyStore = {
         const PlayerStore = Kernel.get("playerStore")
         const StoreKeys = Kernel.get("keys")
 
-        // transaction ensures we don't 'add' to an old balance value.
         return await PlayerStore.transaction(player, async () => {
             const currentBalance = this.getBalance(player)
-            const newBalance = Math.floor(currentBalance + amount)
+            const newBalance = Math.round((currentBalance + amount) * 100) / 100
 
             const success = PlayerStore.set(player, StoreKeys.money(player.id), newBalance)
             if (success) {
@@ -109,13 +107,50 @@ export const EconomyStore = {
                 return false 
             }
 
-            const newBalance = Math.floor(currentBalance - amount)
+            const newBalance = Math.round((currentBalance - amount) * 100) / 100
             const success = PlayerStore.set(player, StoreKeys.money(player.id), newBalance)
             if (success) {
                 SignalBus.emit("economy:balanceChanged", { player, newBalance })
             }
             return success
         })
+    },
+
+    // _commitTransfer — performs balance adjustments, signal bus notifications, and WAL cleanup.
+    async _commitTransfer(sender, receiver, amount, senderBalance, receiverBalance) {
+        const PlayerStore = Kernel.get("playerStore")
+        const StoreKeys = Kernel.get("keys")
+        const Database = Kernel.get("database")
+
+        const newSenderBalance = Math.round((senderBalance - amount) * 100) / 100
+        const senderSuccess = await PlayerStore.set(sender, StoreKeys.money(sender.id), newSenderBalance)
+        if (!senderSuccess) {
+            Database?.flushDirty()
+            Database?.clearWal()
+            return false
+        }
+
+        try {
+            const newReceiverBalance = Math.round((receiverBalance + amount) * 100) / 100
+            const receiverSuccess = await PlayerStore.set(receiver, StoreKeys.money(receiver.id), newReceiverBalance)
+            if (!receiverSuccess) {
+                await PlayerStore.set(sender, StoreKeys.money(sender.id), senderBalance)
+                Database?.flushDirty()
+                Database?.clearWal()
+                return false
+            }
+
+            SignalBus.emit("economy:balanceChanged", { player: sender, newBalance: newSenderBalance })
+            SignalBus.emit("economy:balanceChanged", { player: receiver, newBalance: newReceiverBalance })
+            Database?.flushDirty()
+            Database?.clearWal()
+            return true
+        } catch {
+            await PlayerStore.set(sender, StoreKeys.money(sender.id), senderBalance)
+            Database?.flushDirty()
+            Database?.clearWal()
+            return false
+        }
     },
 
     // transferMoney — moves money between two players. Locks alphabetically to prevent deadlocks. Manual rollback on failure.
@@ -128,13 +163,11 @@ export const EconomyStore = {
             return false
         }
 
-        // don't let people pay themselves. that's just weird.
         if (sender.id === receiver.id) {
             return false 
         }
 
         const PlayerStore = Kernel.get("playerStore")
-        const StoreKeys = Kernel.get("keys")
         const Database = Kernel.get("database")
 
         const senderBalance = this.getBalance(sender)
@@ -144,58 +177,16 @@ export const EconomyStore = {
             return false 
         }
 
-        // ✦ Prevent deadlocks by locking sender and receiver in alphabetical order of player IDs
         const first = sender.id < receiver.id ? sender : receiver
         const second = sender.id < receiver.id ? receiver : sender
 
-        // Write WAL entry immediately to persist the intent before transaction begins
         if (Database) {
             Database.writeWal(sender.id, receiver.id, amount, senderBalance, receiverBalance)
         }
 
         return await PlayerStore.transaction(first, async () => {
             return await PlayerStore.transaction(second, async () => {
-                const newSenderBalance = Math.floor(senderBalance - amount)
-                const senderSuccess = await PlayerStore.set(sender, StoreKeys.money(sender.id), newSenderBalance)
-                if (!senderSuccess) {
-                    if (Database) {
-                        Database.flushDirty()
-                        Database.clearWal()
-                    }
-                    return false
-                }
-
-                try {
-                    const receiverSuccess = await PlayerStore.set(receiver, StoreKeys.money(receiver.id), Math.floor(receiverBalance + amount))
-
-                    // if the receiver write fails, we MUST give the sender their money back.
-                    if (!receiverSuccess) {
-                        // EMERGENCY_REFUND_PROTOCOL
-                        await PlayerStore.set(sender, StoreKeys.money(sender.id), Math.floor(senderBalance))
-                        if (Database) {
-                            Database.flushDirty()
-                            Database.clearWal()
-                        }
-                        return false
-                    }
-
-                    SignalBus.emit("economy:balanceChanged", { player: sender, newBalance: newSenderBalance })
-                    SignalBus.emit("economy:balanceChanged", { player: receiver, newBalance: Math.floor(receiverBalance + amount) })
-
-                    if (Database) {
-                        Database.flushDirty()
-                        Database.clearWal()
-                    }
-                    return true
-                } catch (error) {
-                    // catch any crash during receiver update and refund the sender.
-                    await PlayerStore.set(sender, StoreKeys.money(sender.id), Math.floor(senderBalance))
-                    if (Database) {
-                        Database.flushDirty()
-                        Database.clearWal()
-                    }
-                    return false
-                }
+                return await this._commitTransfer(sender, receiver, amount, senderBalance, receiverBalance)
             })
         })
     },

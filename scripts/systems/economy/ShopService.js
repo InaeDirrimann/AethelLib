@@ -69,14 +69,19 @@ export class ShopService {
     }
 
     static removeItem(player, itemId, amount) {
-        const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container // inv?.
+        const inv = player?.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
+        if (!inv) return
         let remaining = amount
         for (let i = 0; i < inv.size; i++) {
             const item = inv.getItem(i)
             if (item && item.typeId === itemId) {
                 const take = Math.min(item.amount, remaining)
-                if (item.amount === take) inv.setItem(i, undefined)
-                else item.amount -= take
+                if (item.amount === take) {
+                    inv.setItem(i, undefined)
+                } else {
+                    item.amount -= take
+                    inv.setItem(i, item)
+                }
                 remaining -= take
             }
             if (remaining <= 0) break

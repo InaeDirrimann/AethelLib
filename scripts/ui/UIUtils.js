@@ -49,6 +49,8 @@ export class UIUtils {
                 }
 
                 // native forms mutate on failure — rebuild if possible
+                const form = typeof formOrBuilder === "function" ? formOrBuilder() : formOrBuilder;
+                if (!form) return { canceled: true };
                 const rawPlayer = player.__rawEntity__ || player;
                 const response = await form.show(rawPlayer);
                 

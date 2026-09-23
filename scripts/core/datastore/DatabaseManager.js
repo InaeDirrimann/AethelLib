@@ -56,6 +56,9 @@ export class DatabaseManager {
 
     // set: updates cache immediately, marks dirty, schedules background write. Returns false on invalid key or error.
     set(key, value) {
+        if (value === undefined) {
+            return this.delete(key)
+        }
         try {
             if (typeof key !== 'string' || !/^[a-zA-Z0-9_:.-]+$/.test(key)) {
                 console.error(`[DatabaseManager] Invalid key format: ${key}`)
@@ -113,11 +116,20 @@ export class DatabaseManager {
         const index = this.get(indexKey) || []
         
         const collection = []
+        let hasStale = false
+        const validIndex = []
         for (const id of index) {
             const item = this.get(`${collectionName}:item:${id}`)
-            if (item) {
+            if (item !== null && item !== undefined) {
                 collection.push(item)
+                validIndex.push(id)
+            } else {
+                hasStale = true
             }
+        }
+
+        if (hasStale) {
+            this.set(indexKey, validIndex)
         }
         
         return collection
@@ -125,6 +137,9 @@ export class DatabaseManager {
 
     // setSharded: stores an item into a collection and updates its index.
     setSharded(collectionName, itemId, payload) {
+        if (payload === undefined || payload === null) {
+            return this.deleteSharded(collectionName, itemId)
+        }
         try {
             this.set(`${collectionName}:item:${itemId}`, payload)
             
@@ -258,6 +273,11 @@ export class DatabaseManager {
             if (this.cache.has(key)) {
                 try {
                     const payload = this.cache.get(key)
+                    if (payload === undefined) {
+                        this.cache.delete(key)
+                        Kernel.world.setDynamicProperty(key, undefined)
+                        continue
+                    }
                     const serialized = JSON.stringify(payload)
                     
                     if (serialized.length > this.MAX_PROPERTY_SIZE) {

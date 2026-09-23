@@ -45,33 +45,73 @@ export const TeleportService = {
         }
     },
 
-    /* 
-     * SPATIAL_SAFETY_PROBE
-     * Checks if the destination block is hazardous (lava/fire/void).
+    _checkFloorFooting(floor, minY, locationY) {
+        if (!floor || !floor.isValid) return true
+        const floorTypeId = floor.typeId || ""
+        if (floorTypeId.includes("lava") || floorTypeId.includes("fire")) return false
+
+        if (floor.isAir) {
+            let hasFooting = false
+            let probe = floor
+            for (let d = 0; d < 4; d++) {
+                if (!probe || !probe.isValid || probe.location.y <= minY) break
+                if (probe.isSolid) {
+                    hasFooting = true
+                    break
+                }
+                if (probe.typeId.includes("lava") || probe.typeId.includes("fire")) return false
+                probe = probe.below(1)
+            }
+            if (!hasFooting && (locationY - 4 <= minY)) return false
+        }
+        return true
+    },
+
+    /**
+     * Essentials-grade 3-point spatial safety check.
+     * Verifies feet, head, and floor blocks to prevent suffocation, void drops, and burning.
      */
     _isLocationSafe(location, dimensionId) {
         try {
-            if (!location || typeof location.y !== "number" || location.y < -64 || location.y > 320) return false;
+            if (!location || typeof location.y !== "number") return false
+            const isNetherOrEnd = (dimensionId.includes("nether") || dimensionId.includes("the_end"))
+            const minY = isNetherOrEnd ? 0 : -64
+            const maxY = dimensionId.includes("nether") ? 127 : 320
+
+            if (location.y <= minY || location.y > maxY) return false
             const dim = Kernel.world.getDimension(dimensionId)
-            if (!dim) return false;
-            if (!dim.isChunkLoaded(location)) return true;
-            
-            const block = dim.getBlock(location)
-            if (!block) return true
-            
-            const typeId = block.typeId
-            if (typeId.includes("lava") || typeId.includes("fire")) return false
-            
-            return true
+            if (!dim) return false
+
+            const blockLoc = {
+                x: Math.floor(location.x),
+                y: Math.floor(location.y),
+                z: Math.floor(location.z)
+            }
+
+            if (!dim.isChunkLoaded(blockLoc)) return true
+
+            const feet = dim.getBlock(blockLoc)
+            if (!feet || !feet.isValid) return false
+
+            // 1. Suffocation check: feet cannot be a solid block
+            if (feet.isSolid) return false
+
+            // 2. Head check: head cannot be a solid block
+            const head = feet.above(1)
+            if (head && head.isValid && head.isSolid) return false
+
+            // 3. Hazard check: cannot be standing in lava or fire
+            const feetTypeId = feet.typeId || ""
+            if (feetTypeId.includes("lava") || feetTypeId.includes("fire")) return false
+
+            // 4. Floor & Void check
+            return this._checkFloorFooting(feet.below(1), minY, location.y)
         } catch {
             return false // Failsafe: deny on dimension or block query error
         }
     },
 
-    /* 
-     * TEMPORAL_STABILIZATION_VECTOR
-     * Executes a delayed teleportation with stability checks.
-     */
+    // Executes a delayed teleportation with movement and combat interruption checks.
     async teleportWithWait(player, destination, dimensionId, waitTime) {
         if (!player || !player.isValid) return false
         const rawPlayer = player.__rawEntity__ || player;
@@ -107,9 +147,6 @@ export const TeleportService = {
         });
     },
 
-    /* 
-     * SPATIAL_DRIFT_PROBE
-     */
     _hasMoved(player, startPos) {
         const dx = Math.abs(player.location.x - startPos.x)
         const dy = Math.abs(player.location.y - startPos.y)
@@ -117,9 +154,6 @@ export const TeleportService = {
         return dx > 0.5 || dy > 0.5 || dz > 0.5
     },
 
-    /* 
-     * COMBAT_SIGNATURE_PROBE
-     */
     _isInCombat(player) {
         const CombatIntegrity = Kernel.get("combatIntegrity")
         return CombatIntegrity?.isInCombat(player.id) || false

@@ -1,6 +1,7 @@
 import { PermissionData } from "./PermissionData.js"
 import { Kernel } from "../Kernel.js"
 import { Configuration } from "../../Configuration.js"
+import { DEFAULT_RANKS } from "../../data/RankConfig.js"
 export class PermissionManager {
     static #instance = null
     static #data = new PermissionData() // Master storage for all rank data
@@ -350,10 +351,20 @@ export class PermissionManager {
         }
     }
 
-    /** Checks if player has super admin tags. */
+    /** Checks if player has operator status or super admin tags. */
     _isSuperAdmin(player) {
-        const tags = player.getTags()
-        return Configuration.SUPER_ADMIN_TAGS.some(tag => tags.includes(tag))
+        if (!player) return false;
+        try {
+            if (player.isValid === false) return false;
+            if (typeof player.isOp === 'function' && player.isOp()) return true;
+            if (typeof player.getTags === 'function') {
+                const tags = player.getTags();
+                return Configuration.SUPER_ADMIN_TAGS.some(tag => tags.includes(tag));
+            }
+            return false;
+        } catch {
+            return false;
+        }
     }
 
     getStats() {

@@ -1,289 +1,266 @@
-/*
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *  ᚫᛏᚻᛖᛚᚷᚱᚪᛞ  •  A E T H E L G R A D  S T U D I O S  •  ᚫᛏᚻᛖᛚᚷᚱᚪᛞ
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *  
- *  Copyright (c) 2026 Aethelgrad Studios (Wladyslaw18).
- *  All Rights Reserved.
- *  
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Affero General Public License as
- *  published by the Free Software Foundation, either version 3 of the
- *  License, or (at your option) any later version.
- *  
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Affero General Public License for more details.
- *  
- *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
- *  
- *  [ NOBLE INFRASTRUCTURE CORE  • 
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
-
-import { Kernel } from "../../core/Kernel.js";
+import { Kernel } from "../../core/Kernel.js"
 import { Lang } from "../Lang.js"
 import { UIUtils } from "../UIUtils.js"
+import { ThemeTokens } from "../theme/ThemeTokens.js"
+import { getItemDetails, showItemActions, showGiveMenu, showClearConfirmation } from "./InvSeeActions.js"
 
-/*
- * INDUSTRIAL_INVENTORY_AUDIT_V3
+/**
+ * InvSeeUI (Native ContainerSlot Admin Inspector)
  * ----------------------------------------------------------------------------
- * A high-performance grid-based UI for inventory manipulation. 
- * Interfaces with the AethelLib Resource Pack [invUI.png] via the \u00A7a\u00A7e\u00A7l prefix.
- * 
- * GRID_LAYOUT [9x5]:
- * [0-4] Armor & Offhand | [5-7] Empty | [8] GIVE_VECTOR
- * [9-35] Main Inventory (27 slots)
- * [36-44] Hotbar (9 slots)
+ * High-performance inventory inspector using native Bedrock ContainerSlot handles.
+ * Zero client-side resource pack hacks, zero legacy 1.16 bitshifts, 100% vanilla stable.
  */
 
+function getInventorySummary(inv, equipComp) {
+    let activeItems = 0
+    for (let i = 0; i < inv.size; i++) {
+        if (inv.getItem(i)) activeItems++
+    }
+
+    let armorCount = 0
+    const armorSlots = [
+        Kernel.EquipmentSlot.Head,
+        Kernel.EquipmentSlot.Chest,
+        Kernel.EquipmentSlot.Legs,
+        Kernel.EquipmentSlot.Feet,
+        Kernel.EquipmentSlot.Offhand
+    ]
+    armorSlots.forEach(s => { if (equipComp?.getEquipment(s)) armorCount++ })
+    return { activeItems, armorCount }
+}
+
 export async function showInventoryUI(viewer, target) {
-    if (!target || !target.isValid) return;
-    const inv = target.getComponent(Kernel.EntityComponentTypes.Inventory)
-    const equip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
-    
-    if (!inv?.container) {
-        viewer.sendMessage(Lang.ERROR + "Access violation: Inventory buffer unreachable.");
+    if (!viewer?.isValid || !target?.isValid) return
+
+    const invComp = target.getComponent(Kernel.EntityComponentTypes.Inventory)
+    const equipComp = target.getComponent(Kernel.EntityComponentTypes.Equippable)
+    const inv = invComp?.container
+
+    if (!inv) {
+        viewer.sendMessage(`${ThemeTokens.Colors.RedBold}[!] Target inventory container is unreachable.`)
         return
     }
 
+    const { activeItems, armorCount } = getInventorySummary(inv, equipComp)
+    const dimName = target.dimension.id.replace("minecraft:", "")
+
     const form = new Kernel.ActionFormData()
-        .title(Lang.GRID_L + "\u00A70" + target.name + "'s Inventory")
-        .body(`\u00A77Auditing player assets...`)
-
-    // 1. ARMOR SLOTS (0-4)
-    const armorSlots = [Kernel.EquipmentSlot.Head, Kernel.EquipmentSlot.Chest, Kernel.EquipmentSlot.Legs, Kernel.EquipmentSlot.Feet, Kernel.EquipmentSlot.Offhand]
-    for (const slot of armorSlots) {
-        const item = equip?.getEquipment(slot)
-        form.button(item ? `\u00A7f${item.amount}x` : "\u00A78Empty", item ? Lang.getTexture(item.typeId) : "textures/ui/empty_armor_slot_" + slot.toLowerCase())
-    }
-
-    // 2. EMPTY FILLER (5-7)
-    form.button(" ", "textures/ui/blank")
-    form.button(" ", "textures/ui/blank")
-    form.button("\u00A7e\u00A7lREFRESH\n\u00A78Update Grid", "textures/ui/refresh")
-
-    // 3. GIVE BUTTON (8)
-    form.button("\u00A7a\u00A7lGIVE\n\u00A78Asset Transfer", "textures/ui/plus")
-
-    // 4. MAIN INVENTORY (9-35)
-    for (let i = 9; i <= 35; i++) {
-        const item = inv.container.getItem(i)
-        form.button(item ? `\u00A7f${item.amount}x` : " ", item ? Lang.getTexture(item.typeId) : "textures/ui/blank")
-    }
-
-    // 5. HOTBAR (36-44)
-    for (let i = 0; i < 9; i++) {
-        const item = inv.container.getItem(i)
-        form.button(item ? `\u00A7f${item.amount}x` : " ", item ? Lang.getTexture(item.typeId) : "textures/ui/blank")
-    }
+        .title(`\u00A76\u00A7l\u00BB \u00A7eINSPECT: ${target.name.toUpperCase()} \u00A76\u00A7l\u00AB`)
+        .body(
+            `\u00A77Player: \u00A7f${target.name} \u00A78| \u00A77Dimension: \u00A7e${dimName}\n` +
+            `\u00A77Inventory: \u00A7a${activeItems}/36 slots \u00A78| \u00A77Armor/Offhand: \u00A7b${armorCount}/5 slots\n` +
+            `\u00A78Select a section to inspect or modify:`
+        )
+        .button("\u00A7b\u00A7lEQUIPPED GEAR\n\u00A78Armor, Offhand & Durability", ThemeTokens.Textures.Armor)
+        .button("\u00A7e\u00A7lHOTBAR SLOTS\n\u00A78Slots 1 to 9 (Active items)", ThemeTokens.Textures.Weapons)
+        .button("\u00A7a\u00A7lMAIN BAG ITEMS\n\u00A78Browse non-empty items", ThemeTokens.Textures.Emerald)
+        .button("\u00A76\u00A7lALL 36 SLOTS\n\u00A78Direct slot-by-slot picker", ThemeTokens.Textures.Misc)
+        .button("\u00A7d\u00A7lGIVE ITEM\n\u00A78Transfer from your bag", ThemeTokens.Textures.Plus)
+        .button("\u00A7c\u00A7lCLEAR INVENTORY\n\u00A78Wipe target's items", ThemeTokens.Textures.Close)
+        .button("\u00A77\u00A7lCLOSE", ThemeTokens.Textures.Back)
 
     const res = await UIUtils.showForm(viewer, form)
     if (res.canceled) return
 
-    const index = res.selection
-    let actionTaken = false
-
-    // ROUTING
-    if (index < 5) {
-        // Armor Click
-        const slot = armorSlots[index]
-        const item = equip?.getEquipment(slot)
-        if (item) {
-            actionTaken = await showItemActionMenu(viewer, target, item, "armor", slot)
-        } else {
-            viewer.sendMessage(Lang.GRAY + "Slot is vacant.")
-        }
-    } else if (index === 7) {
-        // Refresh button clicked
-        actionTaken = false
-    } else if (index === 8) {
-        // Give Menu
-        await showGiveMenu(viewer, target)
-        actionTaken = true
-    } else if (index >= 9 && index <= 35) {
-        // Main Inventory Click
-        const slot = index
-        const item = inv.container.getItem(slot)
-        if (item) {
-            actionTaken = await showItemActionMenu(viewer, target, item, "inv", slot)
-        }
-    } else if (index >= 36 && index <= 44) {
-        // Hotbar Click
-        const slot = index - 36
-        const item = inv.container.getItem(slot)
-        if (item) {
-            actionTaken = await showItemActionMenu(viewer, target, item, "inv", slot)
-        }
-    }
-    
-    // Refresh UI after action (deferred by 5 ticks to prevent client crashes on rapid UI close/reopen)
-    if (!actionTaken && viewer.isValid && target.isValid) {
-        Kernel.system.runTimeout(() => {
-            if (viewer.isValid && target.isValid) {
-                showInventoryUI(viewer, target);
-            }
-        }, 5);
+    switch (res.selection) {
+        case 0: return showArmorMenu(viewer, target)
+        case 1: return showHotbarMenu(viewer, target)
+        case 2: return showBagMenu(viewer, target)
+        case 3: return showAllSlotsMenu(viewer, target)
+        case 4: return showGiveMenu(viewer, target, () => showInventoryUI(viewer, target))
+        case 5: return showClearConfirmation(viewer, target, () => showInventoryUI(viewer, target))
+        default: return
     }
 }
 
-async function showItemActionMenu(viewer, target, item, type, slot) {
+// 1. Equipped Armor & Offhand Submenu
+async function showArmorMenu(viewer, target) {
+    if (!viewer?.isValid || !target?.isValid) return
+    const equip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
+    if (!equip) return
+
+    const slots = [
+        { name: "Helmet", slot: Kernel.EquipmentSlot.Head, icon: "textures/items/diamond_helmet" },
+        { name: "Chestplate", slot: Kernel.EquipmentSlot.Chest, icon: "textures/items/diamond_chestplate" },
+        { name: "Leggings", slot: Kernel.EquipmentSlot.Legs, icon: "textures/items/diamond_leggings" },
+        { name: "Boots", slot: Kernel.EquipmentSlot.Feet, icon: "textures/items/diamond_boots" },
+        { name: "Offhand", slot: Kernel.EquipmentSlot.Offhand, icon: "textures/items/shield" }
+    ]
+
     const form = new Kernel.ActionFormData()
-        .title(Lang.GRID_M + "\u00A76\u00A7lAsset Action")
-        .body(`\u00A77Item: \u00A7e${item.typeId}\n\u00A77Amount: \u00A7f${item.amount}\n\u00A78Select protocol.`)
-        .button("\u00A7a\u00A7lTAKE\n\u00A78Move to your inventory", "textures/ui/realms_slot_check")
-        .button("\u00A7c\u00A7lPURGE\n\u00A78Delete asset", "textures/ui/trash_default")
-        .button("\u00A77\u00A7lBACK", "textures/ui/cancel")
+        .title(`\u00A7b\u00A7lEQUIPPED: ${target.name}`)
+        .body("\u00A77Click an equipped item to inspect or confiscate:")
+
+    slots.forEach(s => {
+        const item = equip.getEquipment(s.slot)
+        if (item) {
+            const { durability, enchants } = getItemDetails(item)
+            const sub = [durability, enchants[0]].filter(Boolean).join(" | ") || `${item.amount}x`
+            form.button(`\u00A7f\u00A7l${s.name}: ${item.typeId.replace("minecraft:", "")}\n\u00A78${sub}`, Lang.getTexture(item.typeId))
+        } else {
+            form.button(`\u00A78${s.name}: (Empty)\n\u00A78No item equipped`, s.icon)
+        }
+    })
+    form.button("\u00A7c\u00A7lBACK", ThemeTokens.Textures.Back)
 
     const res = await UIUtils.showForm(viewer, form)
-    if (res.canceled || res.selection === 2) return false
-
-    if (res.selection === 0) {
-        // TAKE
-        if (!viewer.isValid || !target.isValid) return true
-        const viewerInv = viewer.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-        if (!viewerInv) return true
-        
-        let targetItem
-        if (type === "armor") {
-            const targetEquip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
-            targetItem = targetEquip?.getEquipment(slot)
-        } else {
-            const targetInv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-            targetItem = targetInv?.getItem(slot)
-        }
-
-        if (!targetItem || targetItem.typeId !== item.typeId || targetItem.amount < item.amount) {
-            viewer.sendMessage(Lang.ERROR + "Transaction aborted: Target item state changed!");
-            return true
-        }
-
-        const leftover = viewerInv.addItem(item)
-        if (leftover) {
-            viewer.sendMessage(Lang.ERROR + "Inventory full! Could not take all items.")
-            return true
-        }
-
-        if (type === "armor") {
-            const targetEquip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
-            if (targetEquip) {
-                if (targetItem.amount === item.amount) {
-                    targetEquip.setEquipment(slot, undefined)
-                } else {
-                    targetItem.amount -= item.amount
-                    targetEquip.setEquipment(slot, targetItem)
-                }
-            }
-        } else {
-            const targetInv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-            if (targetInv) {
-                if (targetItem.amount === item.amount) {
-                    targetInv.setItem(slot, undefined)
-                } else {
-                    targetItem.amount -= item.amount
-                    targetInv.setItem(slot, targetItem)
-                }
-            }
-        }
-        
-        viewer.sendMessage(Lang.SUCCESS + `Taken ${item.amount}x ${item.typeId} from ${target.name}.`)
-        return true
-    } else if (res.selection === 1) {
-        // PURGE
-        if (!target.isValid) return true
-        
-        let targetItem
-        if (type === "armor") {
-            const targetEquip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
-            targetItem = targetEquip?.getEquipment(slot)
-        } else {
-            const targetInv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-            targetItem = targetInv?.getItem(slot)
-        }
-
-        if (!targetItem || targetItem.typeId !== item.typeId || targetItem.amount < item.amount) {
-            viewer.sendMessage(Lang.ERROR + "Transaction aborted: Target item state changed!");
-            return true
-        }
-
-        if (type === "armor") {
-            const targetEquip = target.getComponent(Kernel.EntityComponentTypes.Equippable)
-            if (targetEquip) {
-                if (targetItem.amount === item.amount) {
-                    targetEquip.setEquipment(slot, undefined)
-                } else {
-                    targetItem.amount -= item.amount
-                    targetEquip.setEquipment(slot, targetItem)
-                }
-            }
-        } else {
-            const targetInv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-            if (targetInv) {
-                if (targetItem.amount === item.amount) {
-                    targetInv.setItem(slot, undefined)
-                } else {
-                    targetItem.amount -= item.amount
-                    targetInv.setItem(slot, targetItem)
-                }
-            }
-        }
-        viewer.sendMessage(Lang.SUCCESS + `Purged ${item.typeId} from ${target.name}.`)
-        return true
+    if (res.canceled || res.selection === slots.length) {
+        return showInventoryUI(viewer, target)
     }
-    return false
+
+    const chosen = slots[res.selection]
+    const item = equip.getEquipment(chosen.slot)
+    if (item) {
+        return showItemActions(viewer, target, {
+            item,
+            name: chosen.name,
+            clear: () => equip.setEquipment(chosen.slot, undefined),
+            decrement: (qty) => {
+                if (item.amount <= qty) equip.setEquipment(chosen.slot, undefined)
+                else { item.amount -= qty; equip.setEquipment(chosen.slot, item) }
+            },
+            validate: () => equip.getEquipment(chosen.slot)?.typeId === item.typeId
+        }, () => showArmorMenu(viewer, target))
+    }
+    return showArmorMenu(viewer, target)
 }
 
-async function showGiveMenu(viewer, target) {
-    const viewerInv = viewer.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-    if (!viewerInv) return
+// 2. Hotbar Menu (Slots 0-8)
+async function showHotbarMenu(viewer, target) {
+    if (!viewer?.isValid || !target?.isValid) return
+    const inv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
+    if (!inv) return
 
     const form = new Kernel.ActionFormData()
-        .title(Lang.GRID_L + "\u00A76\u00A7lSelect Asset to Give")
-        .body(`\u00A77Transferring to \u00A7e${target.name}\u00A77.`)
+        .title(`\u00A7e\u00A7lHOTBAR: ${target.name}`)
+        .body("\u00A77Active Hotbar slots (1 to 9):")
+
+    for (let i = 0; i < 9; i++) {
+        const slot = inv.getSlot(i)
+        const item = slot.getItem()
+        if (item) {
+            const { enchants } = getItemDetails(item)
+            const sub = enchants[0] || `${item.amount}x in slot`
+            form.button(`\u00A7f\u00A7l[${i + 1}] ${item.typeId.replace("minecraft:", "")}\n\u00A78${sub}`, Lang.getTexture(item.typeId))
+        } else {
+            form.button(`\u00A78[${i + 1}] (Empty)\n\u00A78Slot vacant`, "textures/ui/blank")
+        }
+    }
+    form.button("\u00A7c\u00A7lBACK", ThemeTokens.Textures.Back)
+
+    const res = await UIUtils.showForm(viewer, form)
+    if (res.canceled || res.selection === 9) {
+        return showInventoryUI(viewer, target)
+    }
+
+    const slotIndex = res.selection
+    const slot = inv.getSlot(slotIndex)
+    const item = slot.getItem()
+    if (item) {
+        return showItemActions(viewer, target, {
+            item,
+            name: `Hotbar Slot ${slotIndex + 1}`,
+            clear: () => slot.setItem(undefined),
+            decrement: (qty) => {
+                if (slot.amount <= qty) slot.setItem(undefined)
+                else slot.amount -= qty
+            },
+            validate: () => slot.getItem()?.typeId === item.typeId
+        }, () => showHotbarMenu(viewer, target))
+    }
+    return showHotbarMenu(viewer, target)
+}
+
+// 3. Main Bag Menu (Only Non-Empty Items)
+async function showBagMenu(viewer, target) {
+    if (!viewer?.isValid || !target?.isValid) return
+    const inv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
+    if (!inv) return
 
     const items = []
-    for (let i = 0; i < viewerInv.size; i++) {
-        const item = viewerInv.getItem(i)
-        if (item) items.push({ item, slot: i })
+    for (let i = 0; i < inv.size; i++) {
+        const item = inv.getItem(i)
+        if (item) items.push({ item, slotIndex: i })
     }
 
     if (items.length === 0) {
-        viewer.sendMessage(Lang.ERROR + "You have no assets to transfer.");
-        return
+        viewer.sendMessage(`${ThemeTokens.Colors.Yellow}[!] ${target.name}'s inventory is completely empty.`)
+        return showInventoryUI(viewer, target)
     }
 
-    items.forEach(data => {
-        form.button(`\u00A7f${data.item.typeId.replace("minecraft:", "")}\n\u00A77Amount: ${data.item.amount}`, Lang.getTexture(data.item.typeId))
+    const form = new Kernel.ActionFormData()
+        .title(`\u00A7a\u00A7lMAIN BAG: ${target.name}`)
+        .body(`\u00A77Found \u00A7e${items.length}\u00A77 non-empty item stacks:`)
+
+    items.forEach(({ item, slotIndex }) => {
+        const { enchants } = getItemDetails(item)
+        const sub = [enchants[0], `Slot #${slotIndex}`].filter(Boolean).join(" | ")
+        form.button(`\u00A7f\u00A7l${item.amount}x ${item.typeId.replace("minecraft:", "")}\n\u00A78${sub}`, Lang.getTexture(item.typeId))
     })
+    form.button("\u00A7c\u00A7lBACK", ThemeTokens.Textures.Back)
 
     const res = await UIUtils.showForm(viewer, form)
-    if (res.canceled) return
-
-    const selected = items[res.selection]
-    if (!viewer.isValid || !target.isValid) return
-    const targetInv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
-    if (!targetInv) return
-
-    const actualItem = viewerInv.getItem(selected.slot)
-    if (!actualItem || actualItem.typeId !== selected.item.typeId || actualItem.amount < selected.item.amount) {
-        viewer.sendMessage(Lang.ERROR + "Transaction aborted: Item state changed!");
-        return
+    if (res.canceled || res.selection === items.length) {
+        return showInventoryUI(viewer, target)
     }
 
-    const leftover = targetInv.addItem(selected.item)
-    if (leftover) {
-        viewer.sendMessage(Lang.ERROR + `${target.name}'s inventory is full!`)
-        return
+    const chosen = items[res.selection]
+    const slot = inv.getSlot(chosen.slotIndex)
+    const item = slot.getItem()
+    if (item) {
+        return showItemActions(viewer, target, {
+            item,
+            name: `Slot #${chosen.slotIndex}`,
+            clear: () => slot.setItem(undefined),
+            decrement: (qty) => {
+                if (slot.amount <= qty) slot.setItem(undefined)
+                else slot.amount -= qty
+            },
+            validate: () => slot.getItem()?.typeId === item.typeId
+        }, () => showBagMenu(viewer, target))
+    }
+    return showBagMenu(viewer, target)
+}
+
+// 4. All 36 Slots Menu (Exact Slot Grid)
+async function showAllSlotsMenu(viewer, target) {
+    if (!viewer?.isValid || !target?.isValid) return
+    const inv = target.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
+    if (!inv) return
+
+    const form = new Kernel.ActionFormData()
+        .title(`\u00A76\u00A7lALL SLOTS: ${target.name}`)
+        .body("\u00A77Direct 0-35 Slot Selector:")
+
+    for (let i = 0; i < inv.size; i++) {
+        const item = inv.getItem(i)
+        if (item) {
+            form.button(`\u00A7f[${i}] ${item.typeId.replace("minecraft:", "")}\n\u00A7a${item.amount}x`, Lang.getTexture(item.typeId))
+        } else {
+            form.button(`\u00A78[${i}] (Empty)`, "textures/ui/blank")
+        }
+    }
+    form.button("\u00A7c\u00A7lBACK", ThemeTokens.Textures.Back)
+
+    const res = await UIUtils.showForm(viewer, form)
+    if (res.canceled || res.selection === inv.size) {
+        return showInventoryUI(viewer, target)
     }
 
-    if (actualItem.amount === selected.item.amount) {
-        viewerInv.setItem(selected.slot, undefined)
-    } else {
-        actualItem.amount -= selected.item.amount
-        viewerInv.setItem(selected.slot, actualItem)
+    const slotIndex = res.selection
+    const slot = inv.getSlot(slotIndex)
+    const item = slot.getItem()
+    if (item) {
+        return showItemActions(viewer, target, {
+            item,
+            name: `Slot #${slotIndex}`,
+            clear: () => slot.setItem(undefined),
+            decrement: (qty) => {
+                if (slot.amount <= qty) slot.setItem(undefined)
+                else slot.amount -= qty
+            },
+            validate: () => slot.getItem()?.typeId === item.typeId
+        }, () => showAllSlotsMenu(viewer, target))
     }
-    viewer.sendMessage(Lang.SUCCESS + `Transferred ${selected.item.amount}x ${selected.item.typeId} to ${target.name}.`);
-    target.sendMessage(Lang.GOLD + `\u00A7e${viewer.name} \u00A77gave you \u00A7f${selected.item.amount}x ${selected.item.typeId}\u00A77.`);
+    return showAllSlotsMenu(viewer, target)
 }

@@ -1,6 +1,7 @@
 import { MoneyCommand } from "./economy/MoneyCommand.js"
 import { PayCommand } from "./economy/PayCommand.js"
 import { TopMoneyCommand } from "./economy/TopMoneyCommand.js"
+import { ShopCommand } from "./economy/ShopCommand.js"
 import { ShopListCommand, ShopSearchCommand, ShopBuyCommand, ShopInfoCommand, ShopCartCommand, ShopCheckoutCommand } from "./shop/ShopCommands.js"
 import { SellCommand } from "./sell/SellCommand.js"
 import { AuctionCommand } from "./auction/AuctionCommand.js"
@@ -16,6 +17,8 @@ export const EconomyRegistry = {
     // | pushes command definitions into the core registry.                       |
     // ----------------------------------------------------------------------------
     register(Registry) {
+        // global marketplace GUI.
+        Registry.register("shop", ShopCommand)
         // check current balance.
         Registry.register("money", MoneyCommand)
         // transfer funds to another player.

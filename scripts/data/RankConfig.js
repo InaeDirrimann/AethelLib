@@ -43,7 +43,6 @@ export const DEFAULT_RANKS = [
             "essentials.home": true,
             "essentials.warp": true,
             "essentials.spawn": true,
-            "essentials.chat.color": true,
             "essentials.pay": true,
             "essentials.money": true,
             "essentials.withdraw": true,

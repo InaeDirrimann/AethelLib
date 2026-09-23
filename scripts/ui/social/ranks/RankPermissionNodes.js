@@ -16,7 +16,6 @@ export const BasicPermissionsNodes = [
     { label: "Auction Command (essentials.auction)", key: "essentials.auction" },
     { label: "Back Command (essentials.back)", key: "essentials.back" },
     { label: "Menu Command (essentials.menu)", key: "essentials.menu" },
-    { label: "Chat Color Formatting (essentials.chat.color)", key: "essentials.chat.color" },
     { label: "Fly Command (essentials.fly)", key: "essentials.fly" },
     { label: "Heal Command (essentials.heal)", key: "essentials.heal" },
     { label: "Feed Command (essentials.feed)", key: "essentials.feed" },

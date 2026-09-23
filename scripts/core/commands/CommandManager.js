@@ -110,7 +110,7 @@ export const CommandManager = {
             "essentials.pay", "essentials.money", "essentials.withdraw", "essentials.shop",
             "essentials.sell", "essentials.rtp", "essentials.back", "essentials.menu",
             "essentials.auction", "essentials.calculate", "essentials.report", "essentials.tps",
-            "essentials.chat.color", "essentials.admin.inspect", "essentials.admin.invsee", 
+            "essentials.admin.inspect", "essentials.admin.invsee", 
             "essentials.admin.ft", "essentials.admin.reports", "essentials.admin.economy", 
             "essentials.admin.ranks", "home.limit", "home.cooldown", "teleport.wait",
             // Sharded / Extended permission nodes:

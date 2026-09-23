@@ -15,13 +15,13 @@ export async function showClaimUI(player) {
     const claims = ClaimStore.getPlayerClaims(player.id)
 
     const form = new Kernel.ActionFormData()
-        .title("\u00A7b\u00A7l🛡️ Your Claims")
+        .title("\u00A7b\u00A7lYour Claims")
         .body(claims.length > 0
             ? `\u00A77You have \u00A7e${claims.length}\u00A77 claim(s)\n\u00A77Stand in a chunk and use \u00A7e!claim\u00A77 to claim it.`
             : "\u00A77You have no claims.\n\u00A77Stand in a chunk and use \u00A7e!claim\u00A77 to claim it.")
 
     // Back button
-    form.button("\u00A7c← Back")
+    form.button("\u00A7cBACK", "textures/ui/refresh")
 
     // Claim buttons
     for (const claim of claims) {

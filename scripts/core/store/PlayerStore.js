@@ -28,45 +28,46 @@ Kernel.world.afterEvents.playerSpawn.subscribe((ev) => {
 
 export const PlayerStore = {
 
-    /* 
-     * ENTITY_BOUND_QUERY_VECTOR
-     * Resolves the entity-specific key and performs an O(1) lookup 
-     * via the DatabaseManager.
-     */
-    get: (player, key) => {
+    _resolveKey(id, key) {
+        if (!key) return `player:${id}`
+        if (typeof key !== "string") return `player:${id}:${key}`
+        if (key.startsWith(`player:${id}:`)) return key
+
+        let cleaned = key
+        while (cleaned.startsWith("player:")) {
+            cleaned = cleaned.slice(7)
+        }
+        while (cleaned.startsWith(`${id}:`)) {
+            cleaned = cleaned.slice(id.length + 1)
+        }
+        if (cleaned.endsWith(`:${id}`)) {
+            cleaned = cleaned.slice(0, -(id.length + 1))
+        } else if (cleaned.includes(`:${id}:`)) {
+            cleaned = cleaned.replace(`:${id}:`, ":")
+        }
+
+        return `player:${id}:${cleaned}`
+    },
+
+    get(player, key) {
         const id = typeof player === "string" ? player : player?.id
         if (!id) return null
-        const fullKey = `player:${id}:${key}`
-        return JournaledDb.get(fullKey)
+        return JournaledDb.get(this._resolveKey(id, key))
     },
 
-    /* 
-     * ENTITY_BOUND_COMMIT_VECTOR
-     */
-    set: (player, key, value) => {
+    set(player, key, value) {
         const id = typeof player === "string" ? player : player?.id
         if (!id) return false
-        const fullKey = `player:${id}:${key}`
-        return JournaledDb.set(fullKey, value)
+        return JournaledDb.set(this._resolveKey(id, key), value)
     },
 
-    /* 
-     * ENTITY_BOUND_DECOMMISSION_VECTOR
-     */
-    delete: (player, key) => {
+    delete(player, key) {
         const id = typeof player === "string" ? player : player?.id
         if (!id) return false
-        const fullKey = `player:${id}:${key}`
-        return JournaledDb.delete(fullKey)
+        return JournaledDb.delete(this._resolveKey(id, key))
     },
 
-    /* 
-     * ATOMIC_TRANSACTION_ORCHESTRATOR
-     * Proxies the transaction request to ensure sequential execution for 
-     * the specific entity UUID. This is the industrial standard for 
-     * preventing financial-buffer race conditions.
-     */
-    transaction: (player, operation) => {
+    transaction(player, operation) {
         const id = typeof player === "string" ? player : player?.id
         return JournaledDb.transaction(id, operation)
     }

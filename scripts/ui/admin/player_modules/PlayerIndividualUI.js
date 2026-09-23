@@ -133,8 +133,9 @@ async function showAdminClaimUI(player, target, refreshCallback) {
     // Teleport admin to claim
     const selectedClaim = claims[res.selection];
     if (selectedClaim) {
-        // ChunkKey is typically "dim_x_z"
-        const parts = selectedClaim.chunkKey.split("_");
+        // ChunkKey can be "dim_x_z" or "x,z" or "x_z"
+        const delimiter = selectedClaim.chunkKey.includes(",") ? "," : "_";
+        const parts = selectedClaim.chunkKey.split(delimiter);
         if (parts.length === 3) {
             const dimId = parts[0];
             const cx = parseInt(parts[1]);
@@ -142,6 +143,11 @@ async function showAdminClaimUI(player, target, refreshCallback) {
             const dim = Kernel.world.getDimension(dimId === "0" ? "overworld" : dimId === "1" ? "nether" : "the_end");
             
             player.teleport({ x: (cx * 16) + 8, y: 100, z: (cz * 16) + 8 }, { dimension: dim });
+            player.sendMessage(`§a§l» §fTeleported to chunk §e${selectedClaim.chunkKey}§f (Safe Y level).`);
+        } else if (parts.length === 2) {
+            const cx = parseInt(parts[0]);
+            const cz = parseInt(parts[1]);
+            player.teleport({ x: (cx * 16) + 8, y: 100, z: (cz * 16) + 8 });
             player.sendMessage(`§a§l» §fTeleported to chunk §e${selectedClaim.chunkKey}§f (Safe Y level).`);
         }
     }

@@ -13,7 +13,7 @@ export async function showSettingsUI(player) {
     const scoreboardVisible = PlayerStore.get(player, "settings:scoreboard") !== false
 
     const form = new Kernel.ModalFormData()
-        .title("\u00A77\u00A7l⚙️ Settings")
+        .title("\u00A76\u00A7lPlayer Settings")
         .toggle("\u00A7eTPA Requests", tpaEnabled)
         .toggle("\u00A76Scoreboard Visible", scoreboardVisible)
 

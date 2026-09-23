@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "aethelgrad-essentials",
-  "version": "1.0.0",
+  "version": "1.1.6",
   "description": "Clean, secure Minecraft Bedrock Essentials addon",
   "main": "scripts/main.js",
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "powershell -ExecutionPolicy Bypass -File .\\tools\\test.ps1"
   },
   "devDependencies": {
-    "@minecraft/server": "2.10.0-beta.1.26.40-stable",
-    "@minecraft/server-ui": "2.2.0-beta.1.26.40-stable",
+    "@minecraft/server": "2.11.0-beta.1.26.50-preview.27",
+    "@minecraft/server-ui": "2.2.0",
     "eslint": "^8.57.0"
   },
   "keywords": [

@@ -1,163 +1,138 @@
 import { Kernel } from "../../core/Kernel.js"
 
-// ----------------------------------------------------------------------------
-// | variable: cooldowns                                                      |
-// | in-memory registry of player IDs and their last execution tick.          |
-// | used to prevent spamming the heavy RTP search algorithm.                 |
-// ----------------------------------------------------------------------------
-const cooldowns = new Map()
+// In-memory registries
+const cooldowns = new Map();
+const activeRtpPlayers = new Set();
 
-// ----------------------------------------------------------------------------
-// | object: RTPCommand                                                       |
-// | command definition for random spatial migration.                          |
-// | utilizes a background job to search for safe landing zones.               |
-// ----------------------------------------------------------------------------
+const UNSAFE_BLOCK_TYPES = new Set([
+    "minecraft:lava",
+    "minecraft:flowing_lava",
+    "minecraft:water",
+    "minecraft:flowing_water",
+    "minecraft:fire",
+    "minecraft:soul_fire",
+    "minecraft:magma",
+    "minecraft:bedrock",
+    "minecraft:cactus",
+    "minecraft:sweet_berry_bush"
+]);
+
 export const RTPCommand = {
-    // internal name.
     name: "rtp",
-    // human-readable description.
-    description: "Teleport to a random safe location",
-    // syntax guide.
+    aliases: ["wild", "randomtp"],
+    description: "Teleport to a random safe wilderness location",
     usage: "/ae:rtp [range]",
-    // required permission node.
     permission: "essentials.rtp",
-    // command category.
     category: "Teleport",
-    // native parameter definitions.
     parameters: [
         { name: "range", type: "int", optional: true }
     ],
 
-    // ----------------------------------------------------------------------------
-    // | method: execute                                                          |
-    // | the entry vector for random teleportation. handles range validation      |
-    // | and triggers the asynchronous search job.                                |
-    // ----------------------------------------------------------------------------
     execute(_data, player, args) {
-        // step 1: cooldown resolution.
-        const PermissionManager = Kernel.get("permissions")
-        const cd = (PermissionManager.getPermission(player, "rtp.cooldown") ?? 10) * 20
-        const last = cooldowns.get(player.id) ?? 0
-        if (Kernel.system.currentTick - last < cd) {
-            player.sendMessage(`\u00A7c\u00A7l» \u00A77Teleport on cooldown. Wait \u00A7e${Math.ceil((cd - (Kernel.system.currentTick - last)) / 20)}s\u00A77.`);
-            return
+        if (!player || !player.isValid) return;
+
+        if (activeRtpPlayers.has(player.id)) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77RTP is already in progress. Please wait...");
+            return;
         }
 
-        // update cooldown pointer.
-        cooldowns.set(player.id, Kernel.system.currentTick)
+        const PermissionManager = Kernel.get("permissions");
+        const cdSeconds = PermissionManager ? (PermissionManager.getPermission(player, "rtp.cooldown") ?? 10) : 10;
+        const cdTicks = cdSeconds * 20;
+        const lastTick = cooldowns.get(player.id) ?? 0;
 
-        // step 2: resolve range. default to 1000 blocks.
-        const range = args[0] ? parseInt(args[0]) : 1000
-        // safety constraints to prevent searching outside loaded world bounds.
-        if (isNaN(range) || range < 100 || range > 10000) {
-            player.sendMessage("\u00A7c\u00A7l» \u00A77Range must be between 100 and 10000.");
-            return
+        if (Kernel.system.currentTick - lastTick < cdTicks) {
+            const waitTime = Math.ceil((cdTicks - (Kernel.system.currentTick - lastTick)) / 20);
+            player.sendMessage(`\u00A7c\u00A7l» \u00A77Teleport on cooldown. Wait \u00A7e${waitTime}s\u00A77.`);
+            return;
         }
 
-        // step 3: combat status check.
-        if (isInCombat(player)) {
-            player.sendMessage("\u00A7c\u00A7l» \u00A77Teleport disabled while in combat.");
-            return
+        const SettingsStore = Kernel.get("settings");
+        const defaultRange = SettingsStore ? Number(SettingsStore.get("RTPRange") || 1000) : 1000;
+        let range = args[0] ? parseInt(args[0]) : defaultRange;
+
+        if (isNaN(range) || range < 200 || range > 10000) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Range must be between 200 and 10000.");
+            return;
         }
 
-        // feedback to the player.
-        player.sendMessage("\u00A76\u00A7l» \u00A7eFinding a safe spot...");
+        cooldowns.set(player.id, Kernel.system.currentTick);
+        activeRtpPlayers.add(player.id);
 
-        // step 4: trigger the safe search job.
-        findSafeLocation(player, range)
+        player.sendMessage("\u00A76\u00A7l» \u00A7eSearching for a safe wilderness landing zone...");
+        executeRtpWorkflow(player, range);
     }
-}
+};
 
-// ----------------------------------------------------------------------------
-// | function: findSafeLocation                                               |
-// | initiates the random search sequence by offloading a generator job       |
-// | to the kernel's scheduler.                                               |
-// ----------------------------------------------------------------------------
-async function findSafeLocation(player, maxRange) {
-    const overworld = Kernel.world.getDimension("minecraft:overworld");
-    const spawnLoc = Kernel.world.getDefaultSpawnLocation?.() || { x: 0, y: 0, z: 0 };
-    
-    // offload to the background job queue. 
-    // this prevents the script from hanging the server while scanning blocks.
-    Kernel.system.runJob(rtpGenerator(player, overworld, spawnLoc, maxRange));
-}
+async function executeRtpWorkflow(player, maxRange) {
+    const rawPlayer = player.__rawEntity__ || player;
+    const initialLocation = { ...rawPlayer.location };
+    const dimension = rawPlayer.dimension;
+    const minDistance = 200;
+    const maxAttempts = 6;
 
-// ----------------------------------------------------------------------------
-// | function: rtpGenerator                                                   |
-// | a time-slicing generator that scans for safe landing coordinates.        |
-// | yields execution back to the engine every 10 Y-levels to maintain 20 TPS.|
-// ----------------------------------------------------------------------------
-function* rtpGenerator(player, dimension, spawnLocation, maxRange) {
-    let attempts = 0;
-    const maxAttempts = 20;
+    try {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (!rawPlayer.isValid) return;
 
-    // attempt to find a spot up to 20 times.
-    while (attempts < maxAttempts) {
-        attempts++;
-        // calculate random radial coordinates around spawn.
-        const angle = Math.random() * 2 * Math.PI;
-        const distance = Math.random() * maxRange;
-        const x = Math.floor(spawnLocation.x + Math.cos(angle) * distance);
-        const z = Math.floor(spawnLocation.z + Math.sin(angle) * distance);
+            const angle = Math.random() * 2 * Math.PI;
+            const distance = minDistance + Math.random() * (maxRange - minDistance);
+            const targetX = Math.floor(initialLocation.x + Math.cos(angle) * distance);
+            const targetZ = Math.floor(initialLocation.z + Math.sin(angle) * distance);
 
-        // scan vertically from the sky down to bedrock.
-        for (let y = 320; y >= -64; y--) {
-            // CRITICAL: yield every 10 levels. 
-            // this allows the engine to process other tasks and keep the game smooth.
-            if (y % 10 === 0) yield; 
+            // Stage player high above the candidate to trigger Bedrock chunk stream
+            rawPlayer.addEffect?.("resistance", 160, { showParticles: false, amplifier: 255 });
+            rawPlayer.addEffect?.("slow_falling", 160, { showParticles: false, amplifier: 1 });
+            rawPlayer.teleport({ x: targetX + 0.5, y: 319, z: targetZ + 0.5 }, { dimension });
 
-            try {
-                // fetch the block at the target coordinate.
-                const block = dimension.getBlock({ x, y, z });
-                if (!block) continue;
+            // Allow Bedrock chunk to load
+            await new Promise(resolve => Kernel.system.runTimeout(resolve, 4));
+            if (!rawPlayer.isValid) return;
 
-                // check the block above for suffocation hazards.
-                const blockAbove = dimension.getBlock({ x, y: y + 1, z });
-                if (!blockAbove) continue;
+            // Query topmost block of the loaded chunk
+            const topBlock = dimension.getTopmostBlock?.({ x: targetX, z: targetZ });
+            if (topBlock && isValidGround(topBlock)) {
+                const safeY = topBlock.y + 1;
+                const TeleportService = Kernel.get("teleportService");
 
-                // validation criteria: solid base block and air gap for the player.
-                if (isSafeBlock(block.typeId) && blockAbove.typeId === "minecraft:air") {
-                    // safe location found. execute the migration.
-                    const location = { x: x + 0.5, y: y + 1, z: z + 0.5 };
-                    
-                    const TeleportService = Kernel.get("teleportService");
-                    TeleportService.teleport(player, location, "minecraft:overworld");
-                    player.sendMessage(`\u00A7a\u00A7l» \u00A7fTeleported to \u00A7e(${x}, ${y + 1}, ${z})\u00A7f!`);
-                    return; // exit generator.
+                if (TeleportService) {
+                    TeleportService.teleport(rawPlayer, { x: targetX + 0.5, y: safeY, z: targetZ + 0.5 }, dimension.id);
+                } else {
+                    rawPlayer.teleport({ x: targetX + 0.5, y: safeY, z: targetZ + 0.5 }, { dimension });
                 }
-            } catch (e) { 
-                // chunk might not be loaded yet. skip.
+
+                rawPlayer.onScreenDisplay?.setActionBar(`\u00A7a\u00A7l» \u00A7fTeleported to \u00A7e(${targetX}, ${safeY}, ${targetZ})`);
+                rawPlayer.sendMessage(`\u00A7a\u00A7l» \u00A7fTeleported to \u00A7e(${targetX}, ${safeY}, ${targetZ})\u00A7f in \u00A7a${attempt}\u00A7f attempt(s)!`);
+                return;
             }
         }
+
+        // Fallback: restore player to starting point
+        if (rawPlayer.isValid) {
+            rawPlayer.teleport(initialLocation, { dimension });
+            rawPlayer.sendMessage("\u00A7c\u00A7l» \u00A77Could not find a safe solid surface. Returned to safety.");
+        }
+    } catch (err) {
+        console.error(`[RTPCommand] Error during search: ${err}`);
+        if (rawPlayer.isValid) {
+            rawPlayer.teleport(initialLocation, { dimension });
+            rawPlayer.sendMessage("\u00A7c\u00A7l» \u00A77Teleport failed. Returned to starting location.");
+        }
+    } finally {
+        activeRtpPlayers.delete(player.id);
     }
-    // if all attempts failed.
-    player.sendMessage(`\u00A7c\u00A7l» \u00A77Could not find a safe spot. Try again.`);
 }
 
-// ----------------------------------------------------------------------------
-// | function: isSafeBlock                                                    |
-// | whitelist of block identifiers that are safe to stand on.                |
-// ----------------------------------------------------------------------------
-function isSafeBlock(blockId) {
-    const safeBlocks = [
-        "minecraft:grass_block",
-        "minecraft:dirt",
-        "minecraft:sand",
-        "minecraft:gravel",
-        "minecraft:stone",
-        "minecraft:cobblestone",
-        "minecraft:snow_block",
-        "minecraft:podzol",
-        "minecraft:mycelium"
-    ]
-    return safeBlocks.includes(blockId)
-}
+function isValidGround(block) {
+    if (!block || block.isAir || block.isLiquid) return false;
+    const typeId = block.typeId;
 
-// ----------------------------------------------------------------------------
-// | function: isInCombat                                                     |
-// | placeholder for combat integrity check.                                  |
-// ----------------------------------------------------------------------------
-function isInCombat(_player) {
-    // TODO: Integrate with CombatIntegrity engine.
-    return false
+    if (UNSAFE_BLOCK_TYPES.has(typeId)) return false;
+    if (typeId.includes("leaves") || typeId.includes("water") || typeId.includes("lava")) return false;
+
+    // Check clearance above
+    const above = block.above?.();
+    if (!above || !above.isAir) return false;
+
+    return true;
 }

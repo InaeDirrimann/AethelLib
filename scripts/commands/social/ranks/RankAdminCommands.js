@@ -1,7 +1,8 @@
 import { Kernel } from "../../../core/Kernel.js"
 
-import { RankSystem } from "../../../systems/social/ranks/RankSystem.js"
+import { RankSystem, refreshPlayerNametag } from "../../../systems/social/ranks/RankSystem.js"
 import { PlayerUtils } from "../../../utils/PlayerUtils.js"
+import { ColorUtils } from "../../../utils/ColorUtils.js"
 
 // ----------------------------------------------------------------------------
 // | constant: RankAdminCommands                                              |
@@ -166,6 +167,58 @@ export const RankAdminCommands = [
             player.sendMessage(`\u00A7a\u00A7l» \u00A7fSet display name of \u00A7b${tag}\u00A7f to \u00A7e${name}\u00A7f.`)
         }
     },
+    // --- Vector: rcolor ---
+    // Sets rank display/name/tag color (e.g. S1, &6, gold, §1)
+    {
+        name: "rcolor",
+        description: "Set rank display/name color",
+        usage: "/ae:rcolor <rankTag> <color>",
+        permission: "essentials.admin.ranks",
+        category: "SOCIAL",
+        native: false,
+        parameters: [
+            { name: "rankTag", type: "string", optional: false },
+            { name: "color", type: "string", optional: false }
+        ],
+        async execute(data, player, args) {
+            const [tag, colorInput] = args
+            const rank = RankSystem.getRank(tag)
+            if (!rank || !colorInput) {
+                player.sendMessage("\u00A7cUsage: /ae:rcolor <rankTag> <color (e.g. S1, &6, gold)>")
+                return
+            }
+            const normalized = ColorUtils.normalizeColorCode(colorInput, "§7")
+            rank.colorName = normalized
+            RankSystem.updateRank(tag, rank)
+            player.sendMessage(`\u00A7a\u00A7l» \u00A7fSet display/name color of \u00A7b${tag}\u00A7f to ${normalized}${colorInput}\u00A7f.`)
+        }
+    },
+    // --- Vector: rchatcolor ---
+    // Sets rank chat message body color (e.g. Sa, &f, white, §a)
+    {
+        name: "rchatcolor",
+        description: "Set rank chat message body color",
+        usage: "/ae:rchatcolor <rankTag> <color>",
+        permission: "essentials.admin.ranks",
+        category: "SOCIAL",
+        native: false,
+        parameters: [
+            { name: "rankTag", type: "string", optional: false },
+            { name: "color", type: "string", optional: false }
+        ],
+        async execute(data, player, args) {
+            const [tag, colorInput] = args
+            const rank = RankSystem.getRank(tag)
+            if (!rank || !colorInput) {
+                player.sendMessage("\u00A7cUsage: /ae:rchatcolor <rankTag> <color (e.g. Sa, &f, white)>")
+                return
+            }
+            const normalized = ColorUtils.normalizeColorCode(colorInput, "§f")
+            rank.colorText = normalized
+            RankSystem.updateRank(tag, rank)
+            player.sendMessage(`\u00A7a\u00A7l» \u00A7fSet chat message color of \u00A7b${tag}\u00A7f to ${normalized}${colorInput}\u00A7f.`)
+        }
+    },
     // --- Vector: assignranks ---
     // Assigns a rank tag to a player entity and invalidates their permission cache.
     {
@@ -225,6 +278,9 @@ export const RankAdminCommands = [
             player.sendMessage(`\u00A7a\u00A7l» \u00A7fSuccessfully assigned rank '${rankTag}' to ${targetPlayer.name}.`)
             targetPlayer.sendMessage(`\u00A7a\u00A7l» \u00A7fYou have been assigned the rank: \u00A7e${rankTag}`)
 
+            // refresh overhead nametag
+            refreshPlayerNametag(targetPlayer)
+
             // purge the stale permission cache.
             PermissionManager.invalidatePlayerCache(targetPlayer.id)
         }
@@ -265,6 +321,9 @@ export const RankAdminCommands = [
             targetPlayer.removeTag(rankTag)
             player.sendMessage(`\u00A7a\u00A7l» \u00A7fSuccessfully removed rank '${rankTag}' from ${targetPlayer.name}.`)
             targetPlayer.sendMessage(`\u00A7c\u00A7l» \u00A77Your rank '${rankTag}' has been revoked.`)
+
+            // refresh overhead nametag
+            refreshPlayerNametag(targetPlayer)
 
             // purge the stale permission cache.
             const PermissionManager = Kernel.get("permissions")
@@ -334,7 +393,7 @@ export const RankAdminCommands = [
                     player.sendMessage("\u00A7e- Land: \u00A7fland.claim, land.unclaim, land.invite, land.kick, land.transfer, land.setting");
                     player.sendMessage("\u00A7e- ChestShop: \u00A7fchestshop.create.sell, chestshop.create.buy, chestshop.sell, chestshop.buy");
                     player.sendMessage("\u00A7e- Admin: \u00A7fadmin.panel, admin.ban, admin.broadcast, admin.economy, admin.floatingtext, admin.invsee, admin.kick, admin.landsetting, admin.log, admin.mute, admin.ranks, admin.resetdata, admin.sellsetting, admin.setting, admin.shopsetting, admin.warp, admin.tp, admin.gm.c, admin.gm.s, admin.gm.sp, admin.gm.a");
-                    player.sendMessage("\u00A7e- General: \u00A7fadmin, essentials.home, essentials.sethome, essentials.delhome, essentials.tpa, essentials.tpaccept, essentials.tpadeny, essentials.tpacancel, essentials.pay, essentials.money, essentials.withdraw, essentials.shop, essentials.sell, essentials.rtp, essentials.back, essentials.menu, essentials.auction, essentials.calculate, essentials.report, essentials.tps, essentials.chat.color, essentials.help, essentials.info, essentials.credit, essentials.default");
+                    player.sendMessage("\u00A7e- General: \u00A7fadmin, essentials.home, essentials.sethome, essentials.delhome, essentials.tpa, essentials.tpaccept, essentials.tpadeny, essentials.tpacancel, essentials.pay, essentials.money, essentials.withdraw, essentials.shop, essentials.sell, essentials.rtp, essentials.back, essentials.menu, essentials.auction, essentials.calculate, essentials.report, essentials.tps, essentials.help, essentials.info, essentials.credit, essentials.default");
                     return;
                 }
                 const rank = RankSystem.getRank(tag);

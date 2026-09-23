@@ -15,7 +15,7 @@ const ALL_PERMS = PERMISSIONS.BUILD | PERMISSIONS.CONTAINERS | PERMISSIONS.DOORS
 function spawnChunkBorderParticles(player, chunkKey, isOwner, isTrusted) {
     try {
         const dim = player.dimension;
-        const [chunkX, chunkZ] = chunkKey.split(",").map(Number);
+        const [chunkX, chunkZ] = chunkKey.split(/[_,]/).map(Number);
         const minX = chunkX * 16;
         const maxX = minX + 16;
         const minZ = chunkZ * 16;
@@ -103,7 +103,7 @@ export const SpatialCache = {
                                 this.lastStickRenders.set(player.id, { x: loc.x, z: loc.z, time: now });
                                 
                                 // Render borders of claimed chunks in 3x3 grid around player
-                                const [currentX, currentZ] = currentKey.split(",").map(Number);
+                                const [currentX, currentZ] = currentKey.split(/[_,]/).map(Number);
                                 for (let dx = -1; dx <= 1; dx++) {
                                     for (let dz = -1; dz <= 1; dz++) {
                                         const nearbyKey = `${currentX + dx},${currentZ + dz}`;

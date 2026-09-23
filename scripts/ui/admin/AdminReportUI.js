@@ -18,20 +18,20 @@ export async function showAdminReportUI(admin) {
         .sort(([, a], [, b]) => (b.timestamp || 0) - (a.timestamp || 0))
 
     const form = new Kernel.ActionFormData()
-        .title("\u00A7c\u00A7l📋 Report Manager")
+        .title("\u00A7c\u00A7lReport Manager")
         .body(reportEntries.length > 0
             ? `\u00A77${reportEntries.length} report(s)`
-            : "\u00A7aNo open reports! 🎉")
+            : "\u00A7aNo open reports.")
 
     // Back button
-    form.button("\u00A7c← Back", "textures/ui/refresh")
+    form.button("\u00A7cBACK", "textures/ui/refresh")
 
     // Report buttons
     for (const [_id, report] of reportEntries) {
         const timeAgo = getTimeAgo(report.timestamp)
         const typeColor = report.type === "server" ? "\u00A7c" : "\u00A7e"
         const typeLabel = report.type === "server" ? "SERVER" : "PLAYER"
-        const targetLabel = report.target ? ` → ${report.target}` : ""
+        const targetLabel = report.target ? ` >> ${report.target}` : ""
         form.button(`${typeColor}[${typeLabel}] \u00A7f${report.reporter}${targetLabel}\n\u00A78${timeAgo}`)
     }
 
@@ -67,9 +67,9 @@ async function showReportDetail(admin, reportId, report) {
     const form = new Kernel.ActionFormData()
         .title("\u00A7c\u00A7lReport Detail")
         .body(body)
-        .button("\u00A7c🗑️ Delete Report", "textures/ui/cancel")
-        .button("\u00A74🔨 Ban Target", "textures/items/iron_axe")
-        .button("\u00A77← Back to Reports", "textures/ui/refresh")
+        .button("\u00A7cDelete Report", "textures/ui/cancel")
+        .button("\u00A74Ban Target", "textures/items/iron_axe")
+        .button("\u00A77Back to Reports", "textures/ui/refresh")
 
     const response = await UIUtils.showForm(admin, form)
     if (response.canceled) return

@@ -37,7 +37,8 @@ export const PlaceholderProvider = {
             if (!player) return "NON_RANKED"
             const PermissionManager = Kernel.get("permissions")
             const rank = PermissionManager?.getHighestRank(player)
-            return rank?.name || "NON_RANKED"
+            if (!rank || !rank.name) return "NON_RANKED"
+            return rank.name.replace(/^\[+|\]+$/g, "")
         })
     },
 

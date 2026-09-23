@@ -33,9 +33,9 @@ export async function showEconomyMenu(player) {
             await showWithdrawUI(player);
             break;
         case 3:
-            const { showMainMenu } = await import("../MainGUI.js");
+            const { showMainGUI } = await import("../MainGUI.js");
             Kernel.system.runTimeout(() => {
-                showMainMenu(player);
+                showMainGUI(player);
             }, 5);
             break;
     }
@@ -74,50 +74,7 @@ async function showPayPlayerUI(player) {
     await showPayAmountUI(player, targetPlayer);
 }
 
-async function showPayAmountUI(player, targetPlayer) {
-    const form = new Kernel.ModalFormData()
-        .title(`\u00A76\u00A7lPAY: ${targetPlayer.name}`)
-        .textField("Amount to pay:", "e.g. 500")
-        .toggle("Verify Transaction", { defaultValue: true });
-
-    const res = await UIUtils.showForm(player, form);
-    if (res.canceled) {
-        Kernel.system.runTimeout(() => {
-            showPayPlayerUI(player);
-        }, 5);
-        return;
-    }
-
-    const amountStr = res.formValues[0];
-    const verify = res.formValues[1];
-    const amount = parseInt(amountStr);
-
-    if (isNaN(amount) || amount <= 0) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Invalid amount. Must be a positive integer.");
-        Kernel.system.runTimeout(() => {
-            showPayPlayerUI(player);
-        }, 5);
-        return;
-    }
-
-    if (!verify) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Transaction canceled: Verification required.");
-        Kernel.system.runTimeout(() => {
-            showPayPlayerUI(player);
-        }, 5);
-        return;
-    }
-
-    const hasEnough = await EconomyStore.hasEnough(player, amount);
-    if (!hasEnough) {
-        const balance = EconomyStore.getBalance(player.id);
-        player.sendMessage(`\u00A7c\u00A7l» \u00A77Insufficient funds. Balance: \u00A7a$${balance.toLocaleString()}`);
-        Kernel.system.runTimeout(() => {
-            showPayPlayerUI(player);
-        }, 5);
-        return;
-    }
-
+async function _executePayment(player, targetPlayer, amount) {
     const success = await EconomyStore.transferMoney(player, targetPlayer, amount);
     if (success) {
         player.sendMessage(`\u00A7a\u00A7l» \u00A7fSent \u00A7e$${amount.toLocaleString()}\u00A7f to \u00A7e${targetPlayer.name}\u00A7f.`);
@@ -127,10 +84,43 @@ async function showPayAmountUI(player, targetPlayer) {
     } else {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Transaction failed. Please try again.");
     }
+}
 
-    Kernel.system.runTimeout(() => {
-        showEconomyMenu(player);
-    }, 5);
+async function showPayAmountUI(player, targetPlayer) {
+    const form = new Kernel.ModalFormData()
+        .title(`\u00A76\u00A7lPAY: ${targetPlayer.name}`)
+        .textField("Amount to pay:", "e.g. 500")
+        .toggle("Verify Transaction", { defaultValue: true });
+
+    const res = await UIUtils.showForm(player, form);
+    if (res.canceled) {
+        Kernel.system.runTimeout(() => showPayPlayerUI(player), 5);
+        return;
+    }
+
+    const amount = parseInt(res.formValues[0]);
+    if (isNaN(amount) || amount <= 0) {
+        player.sendMessage("\u00A7c\u00A7l» \u00A77Invalid amount. Must be a positive integer.");
+        Kernel.system.runTimeout(() => showPayPlayerUI(player), 5);
+        return;
+    }
+
+    if (!res.formValues[1]) {
+        player.sendMessage("\u00A7c\u00A7l» \u00A77Transaction canceled: Verification required.");
+        Kernel.system.runTimeout(() => showPayPlayerUI(player), 5);
+        return;
+    }
+
+    const hasEnough = await EconomyStore.hasEnough(player, amount);
+    if (!hasEnough) {
+        const balance = EconomyStore.getBalance(player.id);
+        player.sendMessage(`\u00A7c\u00A7l» \u00A77Insufficient funds. Balance: \u00A7a$${balance.toLocaleString()}`);
+        Kernel.system.runTimeout(() => showPayPlayerUI(player), 5);
+        return;
+    }
+
+    await _executePayment(player, targetPlayer, amount);
+    Kernel.system.runTimeout(() => showEconomyMenu(player), 5);
 }
 
 async function showTopMoneyUI(player) {
@@ -158,6 +148,29 @@ async function showTopMoneyUI(player) {
     return showEconomyMenu(player);
 }
 
+async function _processWithdrawal(player, amount) {
+    try {
+        const removed = await EconomyStore.removeMoney(player.id, amount);
+        if (!removed) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to withdraw money.");
+            return;
+        }
+
+        const created = createBanknotes(player, amount);
+        if (created > 0) {
+            player.sendMessage(`\u00A7a\u00A7l» \u00A7fSuccessfully withdrew ${BanknoteStore.formatMoney(amount)} into ${created} banknote(s)`);
+            player.sendMessage("\u00A77Right-click banknotes to redeem them");
+        } else {
+            await EconomyStore.addMoney(player.id, amount);
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to create banknotes. Money refunded.");
+        }
+    } catch (error) {
+        console.error(`Withdraw UI error: ${error}`);
+        player.sendMessage("\u00A7c\u00A7l» \u00A77An error occurred during withdrawal.");
+        await EconomyStore.addMoney(player.id, amount);
+    }
+}
+
 async function showWithdrawUI(player) {
     const balance = EconomyStore.getBalance(player.id);
     const form = new Kernel.ModalFormData()
@@ -167,9 +180,7 @@ async function showWithdrawUI(player) {
     const res = await UIUtils.showForm(player, form);
     if (res.canceled) return showEconomyMenu(player);
 
-    const amountStr = res.formValues[0];
-    const amount = parseInt(amountStr);
-
+    const amount = parseInt(res.formValues[0]);
     if (isNaN(amount) || amount <= 0) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Invalid amount.");
         return showEconomyMenu(player);
@@ -193,38 +204,13 @@ async function showWithdrawUI(player) {
 
     const requiredSlots = Math.ceil(amount / 64000);
     const availableSlots = getAvailableInventorySlots(player);
-    
     if (availableSlots < requiredSlots) {
         player.sendMessage(`\u00A7c\u00A7l» \u00A77Not enough inventory space. Need ${requiredSlots} slots, have ${availableSlots}`);
         return showEconomyMenu(player);
     }
 
-    Kernel.system.run(async () => {
-        try {
-            const removed = await EconomyStore.removeMoney(player.id, amount);
-            if (!removed) {
-                player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to withdraw money.");
-                return;
-            }
-
-            const created = createBanknotes(player, amount);
-            if (created > 0) {
-                player.sendMessage(`\u00A7a\u00A7l» \u00A7fSuccessfully withdrew ${BanknoteStore.formatMoney(amount)} into ${created} banknote(s)`);
-                player.sendMessage("\u00A77Right-click banknotes to redeem them");
-            } else {
-                await EconomyStore.addMoney(player.id, amount);
-                player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to create banknotes. Money refunded.");
-            }
-        } catch (error) {
-            console.error(`Withdraw UI error: ${error}`);
-            player.sendMessage("\u00A7c\u00A7l» \u00A77An error occurred during withdrawal.");
-            await EconomyStore.addMoney(player.id, amount);
-        }
-    });
-
-    Kernel.system.runTimeout(() => {
-        showEconomyMenu(player);
-    }, 10);
+    Kernel.system.run(() => _processWithdrawal(player, amount));
+    Kernel.system.runTimeout(() => showEconomyMenu(player), 10);
 }
 
 function createBanknotes(player, totalAmount) {

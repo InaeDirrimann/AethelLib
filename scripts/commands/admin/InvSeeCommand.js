@@ -1,5 +1,5 @@
 import { Kernel } from "../../core/Kernel.js";
-import { showInventoryUI } from "./InvSeeUI.js"
+import { showInventoryUI } from "../../ui/admin/InvSeeUI.js"
 import { PlayerUtils } from "../../utils/PlayerUtils.js"
 
 // ----------------------------------------------------------------------------
