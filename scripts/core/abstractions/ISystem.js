@@ -1,13 +1,8 @@
 /*
- * ISYSTEM_LIFECYCLE_CONTRACT
- * ----------------------------------------------------------------------------
- * This interface defines the mandatory lifecycle methods for any module 
- * registered with the Titanium Kernel. We enforce a standardized 
- * init/update/shutdown flow to ensure that the engine can orchestrate 
- * system states deterministically.
- *
- * PHILOSOPHY: Systems must be able to initialize their state, process 
- * tick-based logic, and clean up their buffers during a shutdown event.
+ * ISystem
+ * -------
+ * Base interface (JSDoc contract) for systems registered with Kernel.
+ * Any system should implement initialize(), tick(), and shutdown().
  */
 
 class ISystem {
@@ -20,7 +15,7 @@ class ISystem {
      * GUARANTEES:
      * - Initializes internal system states and registers dependencies.
      * 
-     * @param {import("../../../types").SystemConfig} config - Config parameters.
+     * @param {import("../../types.js").SystemConfig} config - Config parameters.
      */
     async initialize(config) {
         void config;

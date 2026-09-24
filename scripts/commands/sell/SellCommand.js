@@ -19,6 +19,11 @@ export const SellCommand = {
     permission: "essentials.sell",
     // command category.
     category: "economy",
+    // native parameter definitions
+    params: [
+        { name: "item", type: "string", optional: true },
+        { name: "quantity", type: "integer", optional: true }
+    ],
 
     // ----------------------------------------------------------------------------
     // | method: execute                                                          |

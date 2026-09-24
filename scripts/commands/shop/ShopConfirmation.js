@@ -73,73 +73,76 @@ function clearPlayerTransaction(player) {
     }
 }
 
-// Global chat event binding
-world.beforeEvents.chatSend.subscribe((event) => {
-    const player = event.sender;
-    let transactionId;
-    try {
-        transactionId = player.getDynamicProperty("ae:pending_shop");
-    } catch (e) {
-        return;
-    }
-    if (!transactionId) return;
-
-    const transaction = pendingTransactions.get(transactionId);
-    if (!transaction) {
+// Called during core boot (Stage 2) to register the chat listener.
+// Must NOT run at module import time — Bedrock throws in early-execution mode.
+export function initShopConfirmation() {
+    world.beforeEvents.chatSend.subscribe((event) => {
+        const player = event.sender;
+        let transactionId;
         try {
-            player.setDynamicProperty("ae:pending_shop", undefined);
-        } catch (e) {}
-        return;
-    }
-
-    const message = event.message.trim().toUpperCase();
-    event.cancel = true; // Block leakage instantly
-
-    if (transaction.busy) {
-        return;
-    }
-
-    if (message === "Y" || message === "N") {
-        transaction.busy = true;
-    }
-
-    system.run(() => {
-        if (!player.isValid) return;
-        
-        const clearFn = system.clearRun || system.clearRunJob;
-
-        if (message === "Y") {
-            // Authorized
-            if (clearFn && transaction.timerId !== undefined) {
-                try {
-                    clearFn(transaction.timerId);
-                } catch (e) {}
-            }
-            pendingTransactions.delete(transactionId);
-            try {
-                player.setDynamicProperty("ae:pending_shop", undefined);
-            } catch (e) {}
-            if (typeof transaction.callback === "function") {
-                transaction.callback(player, true);
-            }
-        } else if (message === "N") {
-            // Revoked
-            if (clearFn && transaction.timerId !== undefined) {
-                try {
-                    clearFn(transaction.timerId);
-                } catch (e) {}
-            }
-            pendingTransactions.delete(transactionId);
-            try {
-                player.setDynamicProperty("ae:pending_shop", undefined);
-            } catch (e) {}
-            if (typeof transaction.callback === "function") {
-                transaction.callback(player, false);
-            }
-            player.sendMessage(`${Lang.PREFIX}§c[X] Purchase cancelled.`);
-        } else {
-            // Invalid entry - keep locked, send instructions
-            player.sendMessage(`${Lang.PREFIX}§c[!] Please type §lY§r§c to confirm or §lN§r§c to cancel!`);
+            transactionId = player.getDynamicProperty("ae:pending_shop");
+        } catch (e) {
+            return;
         }
+        if (!transactionId) return;
+
+        const transaction = pendingTransactions.get(transactionId);
+        if (!transaction) {
+            try {
+                player.setDynamicProperty("ae:pending_shop", undefined);
+            } catch (e) {}
+            return;
+        }
+
+        const message = event.message.trim().toUpperCase();
+        event.cancel = true; // Block leakage instantly
+
+        if (transaction.busy) {
+            return;
+        }
+
+        if (message === "Y" || message === "N") {
+            transaction.busy = true;
+        }
+
+        system.run(() => {
+            if (!player.isValid) return;
+            
+            const clearFn = system.clearRun || system.clearRunJob;
+
+            if (message === "Y") {
+                // Authorized
+                if (clearFn && transaction.timerId !== undefined) {
+                    try {
+                        clearFn(transaction.timerId);
+                    } catch (e) {}
+                }
+                pendingTransactions.delete(transactionId);
+                try {
+                    player.setDynamicProperty("ae:pending_shop", undefined);
+                } catch (e) {}
+                if (typeof transaction.callback === "function") {
+                    transaction.callback(player, true);
+                }
+            } else if (message === "N") {
+                // Revoked
+                if (clearFn && transaction.timerId !== undefined) {
+                    try {
+                        clearFn(transaction.timerId);
+                    } catch (e) {}
+                }
+                pendingTransactions.delete(transactionId);
+                try {
+                    player.setDynamicProperty("ae:pending_shop", undefined);
+                } catch (e) {}
+                if (typeof transaction.callback === "function") {
+                    transaction.callback(player, false);
+                }
+                player.sendMessage(`${Lang.PREFIX}§c[X] Purchase cancelled.`);
+            } else {
+                // Invalid entry - keep locked, send instructions
+                player.sendMessage(`${Lang.PREFIX}§c[!] Please type §lY§r§c to confirm or §lN§r§c to cancel!`);
+            }
+        });
     });
-});
+}

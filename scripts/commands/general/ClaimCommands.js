@@ -151,7 +151,7 @@ export const ClaimTrustCommand = {
     usage: "/ae:claimtrust <player> [build|chests|doors|containers|all]",
     permission: "essentials.claim",
     category: "General",
-    parameters: [
+    params: [
         { name: "player", type: "player",          optional: false },
         { name: "perms",  type: "claimPermission", optional: true  }
     ],

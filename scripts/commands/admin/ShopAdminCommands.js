@@ -14,6 +14,11 @@ export const ShopAdminCommands = [
         usage: "/ae:shopadd <category> <price> [priority]",
         permission: "admin.shop",
         category: "ADMIN",
+        params: [
+            { name: "category", type: "string", optional: false },
+            { name: "price", type: "integer", optional: false },
+            { name: "priority", type: "integer", optional: true }
+        ],
         execute(_data, player, args) {
             if (args.length < 2) {
                 player.sendMessage("\u00A7c\u00A7l» \u00A77Usage: /ae:shopadd <category> <price> [priority]");
@@ -58,6 +63,11 @@ export const ShopAdminCommands = [
         usage: "/ae:shopcatmk <id> [icon_texture] [priority]",
         permission: "admin.shop",
         category: "ADMIN",
+        params: [
+            { name: "id", type: "string", optional: false },
+            { name: "icon_texture", type: "string", optional: true },
+            { name: "priority", type: "integer", optional: true }
+        ],
         execute(_data, player, args) {
             if (args.length < 1) {
                 player.sendMessage("\u00A7c\u00A7l» \u00A77Usage: /ae:shopcatmk <id> [icon] [priority]");
@@ -79,6 +89,9 @@ export const ShopAdminCommands = [
         usage: "/ae:shopcatrm <id>",
         permission: "admin.shop",
         category: "ADMIN",
+        params: [
+            { name: "id", type: "string", optional: false }
+        ],
         execute(_data, player, args) {
             if (args.length < 1) {
                 player.sendMessage("\u00A7c\u00A7l» \u00A77Usage: /ae:shopcatrm <id>");
@@ -101,6 +114,7 @@ export const ShopAdminCommands = [
         usage: "/ae:shopcatls",
         permission: "admin.shop",
         category: "ADMIN",
+        params: [],
         execute(_data, player, args) {
             const categories = ShopRegistry.getCategories();
             if (categories.length === 0) {

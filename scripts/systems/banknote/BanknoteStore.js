@@ -161,8 +161,10 @@ export class BanknoteStore {
     }
 }
 
-// Cleanup old banknotes periodically
-Kernel.system.runInterval(() => {
-    BanknoteStore.cleanupOldBanknotes()
-}, 20 * 60 * 60) // Every hour
-
+// Called during boot (Stage 3) to start periodic cleanup.
+// Must NOT run at module import time — Bedrock throws in early-execution mode.
+export function initBanknoteCleanup() {
+    Kernel.system.runInterval(() => {
+        BanknoteStore.cleanupOldBanknotes()
+    }, 20 * 60 * 60) // Every hour
+}

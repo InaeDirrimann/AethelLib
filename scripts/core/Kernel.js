@@ -3,6 +3,19 @@ import * as mcui from "@minecraft/server-ui";
 import { TickScheduler } from "./scheduler/TickScheduler.js";
 import { SignalBus } from "./signalbus/SignalBus.js";
 
+/**
+ * Thrown when code tries to use a system that has been disabled via Kernel.disableSystem().
+ * Catch this in command handlers to show a user-friendly "feature is disabled" message.
+ */
+export class FeatureDisabledError extends Error {
+    /** @param {string} systemId */
+    constructor(systemId) {
+        super(`The '${systemId}' system is currently disabled.`);
+        this.name = "FeatureDisabledError";
+        this.systemId = systemId;
+    }
+}
+
 // Kernel: central service registration, plugin lifecycle management, and native API proxies.
 export class Kernel {
     // Registry of core system instances
@@ -13,8 +26,6 @@ export class Kernel {
     static #disabledSystems = new Set();
     // Cached system proxy instance
     static #systemProxy = null;
-    // Cached null function callbacks for disabled systems
-    static #nullFunctions = new Map();
 
     // Global world instance
     static get world() { return mc.world; }
@@ -221,96 +232,35 @@ export class Kernel {
     }
 
     /**
-     * Creates a Null Object Pattern proxy to prevent TypeError crashes when calling disabled systems.
-     * 
-     * EXPECTS:
-     * - id: String identifier of the disabled system.
-     * - instance: Object representing the disabled service instance, or null.
-     * 
-     * GUARANTEES:
-     * - Returns a Proxy wrapping the instance or an empty object.
-     * - Intercepts calls to functions and returns default types (e.g. 0, false, empty array, or resolved promise).
-     * - Intercepts property accesses and returns safe defaults based on naming heuristics.
-     * 
-     * DOES NOT PROMISE:
-     * - Complete equivalence to the actual active system's functionality.
-     * 
+     * Creates a proxy for a disabled system that throws a FeatureDisabledError
+     * on any method call, so bugs are caught immediately instead of silently
+     * corrupting data.
+     *
      * @param {string} id - The system identifier.
      * @param {Object|null} instance - The original system instance, if any.
-     * @returns {Proxy} A safe proxy returning default values.
+     * @returns {Proxy} A proxy that throws on method calls.
      * @private
      */
     static #createNullProxy(id, instance) {
         const target = instance || {};
-        
         return new Proxy(target, {
-            get(obj, prop, receiver) {
+            get(obj, prop) {
+                // Allow Promise check (prevents accidental await-ing of disabled system)
                 if (prop === "then") return undefined;
-                if (prop === "toJSON") return () => null;
-                if (prop === "valueOf") return () => 0;
-                if (prop === "toString") return () => `[DisabledSystemProxy:${id}]`;
-                if (prop === Symbol.toPrimitive) {
-                    return (hint) => {
-                        if (hint === "number") return 0;
-                        if (hint === "string") return "";
-                        return false;
-                    };
-                }
+                if (prop === "toString") return () => `[DisabledSystem:${id}]`;
+                // Allow checking if the system is available
+                if (prop === "isAvailable" || prop === "enabled") return false;
 
-                let originalValue;
+                // Try reading real properties first (e.g. config constants)
                 try {
-                    originalValue = obj[prop];
-                } catch (e) {}
+                    const val = obj[prop];
+                    if (val !== undefined && typeof val !== "function") return val;
+                } catch (_) {}
 
-                if (typeof originalValue === "function") {
-                    if (Kernel.#nullFunctions.has(prop)) {
-                        return Kernel.#nullFunctions.get(prop);
-                    }
-                    
-                    const fn = (...args) => {
-                        const name = String(prop).toLowerCase();
-                        
-                        if (originalValue.constructor.name === "GeneratorFunction") {
-                            return (function*() {})();
-                        }
-
-                        const isAsync = originalValue.constructor.name === "AsyncFunction" || 
-                                         name.startsWith("async") || 
-                                         name.includes("transaction") || 
-                                         name.includes("transfer") || 
-                                         name.includes("setbalance") || 
-                                         name.includes("addmoney") || 
-                                         name.includes("removemoney") || 
-                                         name.includes("hasenough");
-
-                        let val;
-                        if (name.startsWith("get") || name.includes("balance") || name.includes("count") || name.includes("price") || name.includes("size") || name.includes("amount")) {
-                            if (name.includes("player") || name.includes("account") || name.includes("system") || name.includes("service")) {
-                                val = null;
-                            } else if (name.includes("leaderboard") || name.includes("balances") || name.includes("list") || name.includes("all")) {
-                                val = [];
-                            } else {
-                                val = 0;
-                            }
-                        } else if (name.startsWith("is") || name.startsWith("has") || name.startsWith("can") || name.startsWith("pay") || name.startsWith("charge") || name.startsWith("withdraw") || name.startsWith("deposit") || name.startsWith("save") || name.startsWith("set") || name.startsWith("delete") || name.startsWith("remove") || name.startsWith("add") || name.startsWith("update") || name.startsWith("disable") || name.startsWith("enable") || name.startsWith("transfer")) {
-                            val = false;
-                        } else {
-                            val = undefined;
-                        }
-
-                        return isAsync ? Promise.resolve(val) : val;
-                    };
-                    
-                    Kernel.#nullFunctions.set(prop, fn);
-                    return fn;
-                }
-
-                const name = String(prop).toLowerCase();
-                if (name.includes("balance") || name.includes("limit") || name.includes("default")) {
-                    return 0;
-                }
-
-                return undefined;
+                // Any method call throws a FeatureDisabledError
+                return () => {
+                    throw new FeatureDisabledError(id);
+                };
             }
         });
     }
@@ -336,6 +286,14 @@ export class Kernel {
         if (this.#disabledSystems.has(id)) return false;
         return this.#systems.has(id) || this.#serviceProviders.has(id);
     }
+
+    /**
+     * Returns whether a registered system is currently enabled (not disabled).
+     *
+     * @param {string} id - The system identifier.
+     * @returns {boolean} True if the system is registered and not disabled.
+     */
+    static isEnabled(id) { return !this.#disabledSystems.has(id); }
 
     /**
      * Disables a registered system and executes its shutdown hooks.

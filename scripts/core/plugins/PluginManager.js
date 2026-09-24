@@ -1,15 +1,14 @@
 import { Kernel } from "../Kernel.js"
 import { DependencySorter } from "../../utils/DependencySorter.js"
 
-// central nervous system for external modules.
-// handles dep resolution, api sharing, and prevents plugins from nuking each other's databases.
+// Manages plugin loading, dependency ordering, and resource tracking.
 export const PluginManager = {
     _plugins: new Map(),
-    _apis: new Map(), // the service mesh. where plugins dump their public functions.
+    _apis: new Map(), // Public APIs exposed by plugins
     _commandManifests: new Map(), // pluginId -> { manifest, commands, logic }
 
     /**
-     * Spawns an isolated execution sandbox context for a plugin.
+     * Creates a scoped context object for a plugin.
      * 
      * EXPECTS:
      * - manifest: Plugin manifest metadata object.
@@ -113,7 +112,7 @@ export const PluginManager = {
             log: (msg) => console.log(`\u00A78[\u00A7b${manifest.id}\u00A78] \u00A7f${msg}`),
             error: (msg) => console.error(`\u00A78[\u00A7c${manifest.id}\u00A78] \u00A7cERROR: ${msg}`),
 
-            // Proxied Engine interfaces (Stable Proxy Pattern + Preemptive Resource Registry)
+            // Proxied engine interfaces for resource tracking
             system: new Proxy({}, {
                 get(dummyTarget, prop) {
                     if (prop === "runInterval") {
@@ -246,12 +245,12 @@ export const PluginManager = {
                 }
             }
 
-            // Register extracted commands automatically
+            // Register extracted commands with the command registry
             for (const cmd of commands) {
                 if (!cmd) continue;
                 try {
-                    cmd.context = context; // Inject context for proxy pattern
-                    context.registerCommand(cmd); // talks to CommandRegistry
+                    cmd.context = context;
+                    context.registerCommand(cmd);
                 } catch (e) {
                     console.error(`[PluginManager] Failed to register command ${cmd?.name || "unknown"} from ${manifest.id}: ${e}`);
                 }
@@ -338,7 +337,7 @@ export const PluginManager = {
      * - Unregisters all native commands associated with the module.
      * - Safely cancels and clears all registered intervals, timeouts, and listeners for this plugin.
      * - Deletes plugin from all registry maps.
-     * - Performs dynamic reload using cache-busting timestamp parameters.
+     * - Reloads plugin module via the registered loader.
      * - Instantiates, stages, and enables the new loaded plugin module.
      * 
      * DOES NOT PROMISE:
@@ -412,7 +411,7 @@ export const PluginManager = {
                 }
             }
 
-            // Preemptive Resource Registry cleanup (intervals, timeouts, listeners)
+            // Clean up plugin resources (intervals, timeouts, listeners)
             const context = plugin.context;
             if (context && context._resources) {
                 const { activeIntervals, activeTimeouts, activeListeners } = context._resources;
@@ -451,15 +450,10 @@ export const PluginManager = {
             this._apis.delete(targetId);
         }
 
-        // 2. Dynamic import with cache-buster timestamp query parameter
-        let module;
-        try {
-            const cacheBusterPath = `../../plugins/${matchedDef.path}/index.js?t=${Date.now()}`;
-            module = await import(cacheBusterPath);
-        } catch (err) {
-            console.warn(`[PluginManager] Cache-busting dynamic import failed: ${err}. Falling back to standard loader.`);
-            module = await matchedDef.loader();
-        }
+        // Re-import via the registered loader. Note: Bedrock's QuickJS engine caches
+        // modules statically — hot-reloading reflects config/state changes only,
+        // not code changes. A full server restart is needed for code changes.
+        const module = await matchedDef.loader();
 
         const manifest = module.manifest;
         const logic = module.main || module.default;
@@ -503,6 +497,7 @@ export const PluginManager = {
             }
         }
 
+        // Register extracted commands with the command registry
         for (const cmd of commands) {
             if (!cmd) continue;
             cmd.context = context;

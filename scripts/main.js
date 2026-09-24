@@ -6,56 +6,39 @@ import { initializeSystems } from "./bootstrap/systems.js"
 import { initializeServices } from "./bootstrap/services.js"
 import { pluginDefs } from "./plugins/PluginLoader.js"
 import { PluginManager } from "./core/plugins/PluginManager.js"
-// import { VerificationSuite } from "./utils/VerificationSuite.js"
 
-// ----------------------------------------------------------------------------
-// | entry point: main.js                                                     |
-// | the first file executed by the bedrock script engine.                    |
-// | coordinates the initialization sequence for the entire library.          |
-// ----------------------------------------------------------------------------
+// Entry point: first file run by the Bedrock script engine.
+// Coordinates the init sequence for the entire library.
 
-// ----------------------------------------------------------------------------
-// | initialization (stage 0)                                                 |
-// | these run immediately before the first tick.                             |
-// | used to set up global variables and register command definitions.        |
-// ----------------------------------------------------------------------------
-
-// stage 0.1: register basic registries (services, events).
+// --- Stage 0: Early boot (runs synchronously before first tick) ---
+// Register core registries: commandRegistry, commandManager, shop enums, and UI shims.
 initEarly()
 
-// Phase 0 – Synchronous command extraction
-// We await here, but because it is top-level before the first tick, 
-// the extracted commands are ready before the startup event fires.
-for (const def of pluginDefs) {
-    await PluginManager.extractCommands(def);
-}
-
-// Map the extracted commands to the Native C++ engine synchronously
-PluginManager.stageAllSync();
-
-// stage 0.2: sync command definitions with Bedrock's CustomCommandRegistry.
+// Register command definitions with the CommandBootstrap.
+// Safe here because CommandBootstrap just populates a Map — no Bedrock API calls.
 initCommands()
 
-// ----------------------------------------------------------------------------
-// | asynchronous boot sequence                                               |
-// | runs inside a Kernel.system.run loop to ensure we have access to the world      |
-// | and other engine features that aren't ready at instant-zero.             |
-// ----------------------------------------------------------------------------
+// --- Stages 1–4: Deferred boot (runs inside first system.run tick) ---
+// world, players, and other engine features are available here.
 Kernel.system.run(async () => {
-    // stage 1: core boot.
-    // initializes managers (database, cache, etc) and sets up event listeners.
+    // Stage 1: Extract plugin command definitions and register them with Bedrock's
+    // CustomCommandRegistry (which is available via the startup event registered in early.js).
+    for (const def of pluginDefs) {
+        await PluginManager.extractCommands(def);
+    }
+    PluginManager.stageAllSync();
+
+    // Stage 2: Core services (database, stores, event listeners).
     initCore()
 
-    // stage 2: foundational game systems (combat, killstreaks, land protection).
+    // Stage 3: Game systems (combat, killstreaks, land protection).
     initializeSystems()
 
-    // stage 3: staggered background services (holograms, scoreboard mirror, etc).
+    // Stage 4: Background services (holograms, scoreboard mirror, etc.).
     initializeServices()
 
-    // stage 4: plugins.
-    // boot sequence. strictly ordered to prevent undefined references.
+    // Stage 5: Plugins — strictly ordered by dependency graph.
     await PluginManager.enableAll()
 
-    // and we're done. hopefully nothing crashed.
-    console.log("[AethelLib] systems active.");
+    console.log("[AethelLib] Boot complete.");
 })

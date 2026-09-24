@@ -15,25 +15,55 @@ const nameToIdCache = new Map()
 // garbage-collection interval handle (see shutdown())
 let _gcIntervalId = null;
 
-// add players to the cache as soon as they spawn.
-Kernel.world.afterEvents.playerSpawn.subscribe((ev) => {
-    const { player } = ev
-    const lowerName = player.name.toLowerCase()
-    nameCache.set(lowerName, player)
-    idToNameCache.set(player.id, lowerName)
-    nameToIdCache.set(lowerName, player.id)
-})
+// Called during core boot (Stage 2) to register player tracking listeners.
+// Must NOT run at module import time — Bedrock throws in early-execution mode.
+export function initPlayerCache() {
+    // Seed cache with players already online when the script boots.
+    Kernel.world.getAllPlayers().forEach(p => {
+        const lowerName = p.name.toLowerCase()
+        nameCache.set(lowerName, p)
+        idToNameCache.set(p.id, lowerName)
+        nameToIdCache.set(lowerName, p.id)
+    })
 
-// remove players when they leave so we don't hold onto dead object references.
-Kernel.world.afterEvents.playerLeave.subscribe((ev) => {
-    const { playerId } = ev
-    const lowerName = idToNameCache.get(playerId)
-    if (lowerName) {
-        nameCache.delete(lowerName)
-        nameToIdCache.delete(lowerName)
-    }
-    idToNameCache.delete(playerId)
-})
+    // Add players to the cache as soon as they spawn.
+    Kernel.world.afterEvents.playerSpawn.subscribe((ev) => {
+        const { player } = ev
+        const lowerName = player.name.toLowerCase()
+        nameCache.set(lowerName, player)
+        idToNameCache.set(player.id, lowerName)
+        nameToIdCache.set(lowerName, player.id)
+    })
+
+    // Remove players when they leave so we don't hold onto stale references.
+    Kernel.world.afterEvents.playerLeave.subscribe((ev) => {
+        const { playerId } = ev
+        const lowerName = idToNameCache.get(playerId)
+        if (lowerName) {
+            nameCache.delete(lowerName)
+            nameToIdCache.delete(lowerName)
+        }
+        idToNameCache.delete(playerId)
+    })
+
+    // Sweep caches for dead entity references every ~60 seconds.
+    _gcIntervalId = Kernel.system.runInterval(() => {
+        const namesToDelete = []
+        for (const [lowerName, player] of nameCache.entries()) {
+            if (!player || !player.isValid) {
+                namesToDelete.push(lowerName)
+            }
+        }
+        for (const lowerName of namesToDelete) {
+            nameCache.delete(lowerName)
+            const id = nameToIdCache.get(lowerName)
+            if (id) {
+                idToNameCache.delete(id)
+            }
+            nameToIdCache.delete(lowerName)
+        }
+    }, 1200) // 1200 ticks = ~60 seconds
+}
 
 export const PlayerUtils = {
     /**
@@ -348,21 +378,3 @@ export const PlayerUtils = {
     }
 }
 
-// garbage collection
-// periodically sweep the caches for dead entities.
-_gcIntervalId = Kernel.system.runInterval(() => {
-    const namesToDelete = []
-    for (const [lowerName, player] of nameCache.entries()) {
-        if (!player || !player.isValid) {
-            namesToDelete.push(lowerName)
-        }
-    }
-    for (const lowerName of namesToDelete) {
-        nameCache.delete(lowerName)
-        const id = nameToIdCache.get(lowerName)
-        if (id) {
-            idToNameCache.delete(id)
-        }
-        nameToIdCache.delete(lowerName)
-    }
-}, 1200) // 1200 ticks = ~60 seconds

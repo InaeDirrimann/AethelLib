@@ -7,9 +7,9 @@ export const LogCommand = {
     usage: "/ae:log <player> [category]",
     permission: "essentials.admin",
     category: "Admin",
-    parameters: [
+    params: [
         { name: "player", type: "player", optional: false },
-        { name: "category", type: "string", optional: true, enum: ["command", "msg"] }
+        { name: "category", type: "logCategory", optional: true }
     ],
 
     execute(_data, player, args) {

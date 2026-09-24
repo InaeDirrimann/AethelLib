@@ -112,9 +112,13 @@ export class UIUtils {
             }
         }, 5);
     }
+    /**
+     * Initializes event listeners for player cleanup.
+     * Must be called during deferred boot (Stage 2), NOT at module evaluation time.
+     */
+    static init() {
+        Kernel.world.afterEvents.playerLeave.subscribe((event) => {
+            UIUtils.activeOpens.delete(event.playerId);
+        });
+    }
 }
-
-// Clean up locks when players leave the server to prevent permanent lockouts
-Kernel.world.afterEvents.playerLeave.subscribe((event) => {
-    UIUtils.activeOpens.delete(event.playerId);
-});

@@ -15,11 +15,15 @@ const tickTimes = new Float64Array(TICK_SAMPLE_COUNT)
 let tickWrite = 0
 let tickCount = 0
 
-Kernel.system.runInterval(() => {
-    tickTimes[tickWrite] = Date.now()
-    tickWrite = (tickWrite + 1) % TICK_SAMPLE_COUNT
-    if (tickCount < TICK_SAMPLE_COUNT) tickCount++
-}, 1)
+// Exported so bootstrap/systems.js can call this after the first tick.
+// Must NOT run at module import time — Bedrock throws in early-execution mode.
+export function initTpsSampler() {
+    Kernel.system.runInterval(() => {
+        tickTimes[tickWrite] = Date.now()
+        tickWrite = (tickWrite + 1) % TICK_SAMPLE_COUNT
+        if (tickCount < TICK_SAMPLE_COUNT) tickCount++
+    }, 1)
+}
 
 // ----------------------------------------------------------------------------
 // | function: getRealTPS                                                     |

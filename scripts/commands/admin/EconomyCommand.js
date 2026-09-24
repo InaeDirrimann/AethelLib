@@ -18,10 +18,10 @@ export const EconomyCommand = {
     // command category.
     category: "Admin",
     // native parameter definitions.
-    parameters: [
-        { name: "subcommand", type: "string", optional: true },
-        { name: "player", type: "player", optional: true },
-        { name: "amount", type: "int",    optional: true  }
+    params: [
+        { name: "subcommand", type: "economyAction", optional: true },
+        { name: "player",     type: "string",        optional: true },
+        { name: "amount",     type: "integer",       optional: true  }
     ],
 
     // ----------------------------------------------------------------------------
@@ -30,13 +30,21 @@ export const EconomyCommand = {
     // | to specialized liquidity handlers.                                       |
     // ----------------------------------------------------------------------------
     async execute(_data, player, args) {
-        // syntax validation.
-        if (args.length < 2) {
-            player.sendMessage("\u00A7c\u00A7l» \u00A77Usage: /ae:economy <give|take|set|reset> <player> [amount]");
-            return
+        // Case 1: No arguments — open the Economy Control dashboard
+        if (!args || args.length === 0 || !args[0]) {
+            const { showEconomyControl } = await import("../../ui/admin/AdminPanelEconomy.js");
+            await showEconomyControl(player);
+            return;
         }
 
-        const subcommand = args[0].toLowerCase()
+        // Case 2: Direct CLI input validation
+        if (args.length < 2) {
+            player.sendMessage("\u00A7c\u00A7l» \u00A77Usage: /ae:economy <give|take|set|reset> <player> [amount]");
+            player.sendMessage("\u00A77Or type \u00A7e/ae:economy \u00A77with no arguments to open the menu.");
+            return;
+        }
+
+        const subcommand = args[0].toLowerCase();
         const playerName = args[1]
 
         // step 1: entity resolution.

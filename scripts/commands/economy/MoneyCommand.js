@@ -19,8 +19,8 @@ export const MoneyCommand = {
     // command category.
     category: "ECONOMY",
     // native parameter definitions.
-    parameters: [
-        { name: "target", type: "player", optional: true }
+    params: [
+        { name: "target", type: "string", optional: true }
     ],
 
     // ----------------------------------------------------------------------------

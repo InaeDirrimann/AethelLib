@@ -1,4 +1,4 @@
-import { Kernel } from "../Kernel.js";
+import { Kernel, FeatureDisabledError } from "../Kernel.js";
 import { PlayerUtils } from "../../utils/PlayerUtils.js";
 import { Database } from "../datastore/DatabaseManager.js";
 import { DEFAULT_RANKS } from "../../data/RankConfig.js";
@@ -134,6 +134,21 @@ export const CommandManager = {
             "yellow", "white", "rainbow", "bold", "strikethrough", "underline", "italic", "reset"
         ]);
 
+        // Populate 'claimPermission' enum
+        Registry.registerEnum("claimPermission", [
+            "build", "chests", "doors", "containers", "all"
+        ]);
+
+        // Populate 'logCategory' enum
+        Registry.registerEnum("logCategory", [
+            "command", "msg"
+        ]);
+
+        // Populate 'economyAction' enum
+        Registry.registerEnum("economyAction", [
+            "give", "take", "set", "reset"
+        ]);
+
         // Sync all enums to the native C++ engine
         Registry.getAllEnums().forEach(enumName => {
             try {
@@ -160,25 +175,6 @@ export const CommandManager = {
 
             // Resolve parameters
             let paramsList = def.params || def.parameters || [];
-
-            // --- SELECTIVE_NATIVE_AUTOCOMPLETE_STRATEGY ---
-            // For commands flagged with chatRaw: true (symbols/infinite args), 
-            // use Buffer Registration (8 optional strings).
-            // This avoids hard-coding command names — the flag lives on the command definition.
-            if (def.chatRaw === true) {
-                paramsList = [
-                    { name: "t1", type: "string", optional: true },
-                    { name: "t2", type: "string", optional: true },
-                    { name: "t3", type: "string", optional: true },
-                    { name: "t4", type: "string", optional: true },
-                    { name: "t5", type: "string", optional: true },
-                    { name: "t6", type: "string", optional: true },
-                    { name: "t7", type: "string", optional: true },
-                    { name: "t8", type: "string", optional: true }
-                ];
-            } else if (def.native === false && paramsList.length > 5) {
-                paramsList = [];
-            }
             
             const namespacedName = name.includes(":") ? name : `${this._primaryNS}:${name}`;
             const lowerNS = namespacedName.toLowerCase();
@@ -324,11 +320,12 @@ export const CommandManager = {
 
             const paramsList = cmd.params || cmd.parameters;
             const isLegacy = !cmd.params && !!cmd.parameters;
-
             let rawArgs = args;
             if (vector === "NATIVE" && args.length === 1 && typeof args[0] === "object" && args[0] !== null && !Array.isArray(args[0]) && typeof args[0].isValid !== "function" && !args[0].id && !args[0].typeId && !("x" in args[0] && "y" in args[0] && "z" in args[0])) {
                 const argsObj = args[0];
-                rawArgs = paramsList ? paramsList.map(param => argsObj[param.name]) : [];
+                rawArgs = (paramsList && paramsList.length > 0)
+                    ? paramsList.map(param => argsObj[param.name])
+                    : (argsObj.args !== undefined ? [argsObj.args] : Object.values(argsObj));
             }
 
 
@@ -424,12 +421,16 @@ export const CommandManager = {
                         cmd.callback({ sourceEntity: player, sourceType: "Entity", vector }, cleanArgs);
                     }
                 } catch (execError) {
-                    console.error(`[CommandManager] EXECUTION_CRASH [${cmd.name}]:`, execError);
+                    if (execError instanceof FeatureDisabledError) {
+                        player.sendMessage(`\u00A7c\u00A7l» \u00A77This feature is currently disabled.`);
+                        return;
+                    }
+                    console.error(`[CommandManager] Command crash [${cmd.name}]:`, execError);
                     player.sendMessage(`\u00A7c\u00A7l» \u00A77Command execution failed due to an internal error.`);
                 }
             });
         } catch (dispatchError) {
-            console.error(`[CommandManager] DISPATCH_CRASH [${cmd.name}]:`, dispatchError);
+            console.error(`[CommandManager] Dispatch error [${cmd.name}]:`, dispatchError);
         }
     },
 
@@ -539,7 +540,10 @@ export const CommandManager = {
 
         return {
             name: finalName,
-            description: def.description || "Aethelgrad Command Vector",
+            description: def.description || "AethelLib command",
+            // Must be false — Bedrock defaults to true, which silently blocks
+            // commands on survival servers that don't have cheats enabled.
+            cheatsRequired: false,
             permissionLevel: Kernel.CommandPermissionLevel.Any,
             mandatoryParameters: mandatory,
             optionalParameters: optional

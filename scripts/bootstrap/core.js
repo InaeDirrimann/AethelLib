@@ -1,8 +1,3 @@
-/**
- * Core bootstrap logic
- * Registers services and initializes core systems.
- */
-
 import { Kernel } from "../core/Kernel.js"
 import { RankSystem } from "../systems/social/ranks/RankSystem.js"
 import { ChatSystem } from "../systems/social/chat/ChatSystem.js"
@@ -28,7 +23,7 @@ import { TPAStore } from "../systems/tpa/TpaStore.js"
 import { TpaHandshake } from "../systems/tpa/TpaHandshake.js"
 import { TpaService } from "../systems/tpa/TpaService.js"
 import { TeleportService } from "../systems/teleport/TeleportService.js"
-import { PlayerUtils } from "../utils/PlayerUtils.js"
+import { initPlayerCache } from "../utils/PlayerUtils.js"
 import { ShopStore } from "../systems/economy/ShopStore.js"
 import { MasterDispatcher } from "../core/events/MasterDispatcher.js"
 import { SpatialCache } from "../systems/protection/SpatialCache.js"
@@ -36,12 +31,16 @@ import { SettingsStore } from "../core/store/SettingsStore.js"
 import { CommandHandler } from "../commands/base/CommandHandler.js"
 import { CleanupServiceInstance } from "../core/services/CleanupService.js"
 import { LogStore } from "../systems/general/LogStore.js"
+import { initShopConfirmation } from "../commands/shop/ShopConfirmation.js"
+import { init as initGodMode } from "../commands/admin/GodCommand.js"
+import { UIUtils } from "../ui/UIUtils.js"
 
 
 let isInitialized = false
 
 /**
- * Initialize core services
+ * Registers all core services with Kernel and runs their init() methods.
+ * Called during Stage 2 (inside the first system.run tick) from main.js.
  */
 export function init() {
     if (isInitialized) return
@@ -86,11 +85,13 @@ export function init() {
     Kernel.register("cleanupService", CleanupServiceInstance)
     Kernel.register("logStore", LogStore)
 
-
-    // Initialize systems
+    // Start event-driven subsystems
     MasterDispatcher.init()
     SpatialCache.init()
-    PlayerUtils.init()
+    initPlayerCache()          // player name cache + GC interval
+    initShopConfirmation()     // Y/N chat confirmation for shop transactions
+    initGodMode()              // entityHurt cancellation for god mode players
+    UIUtils.init()              // playerLeave cleanup for UI mutex locks
     TpaService.init()
     TeleportService.init()
     RankSystem.init()
@@ -99,8 +100,7 @@ export function init() {
     CommandHandler.init()
     CleanupServiceInstance.init()
 
-
-    console.log("[Kernel] Services initialized. Total: " + Kernel.size);
+    console.log("[AethelLib] Core services ready. Total: " + Kernel.size);
 }
 
 
