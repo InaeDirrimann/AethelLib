@@ -80,18 +80,21 @@ export async function showEconomyControl(player) {
 async function showGiveMoneyInterface(player) {
     const players = Kernel.world.getAllPlayers()
     if (players.length === 0) {
-        player.sendMessage("\u00A7cNo players online")
+        player.sendMessage("§c§l» §7No players online.")
         await showEconomyControl(player)
         return
     }
 
     const form = new Kernel.ActionFormData()
-        .title("\u00A7a\u00A7e\u00A7l\u00A76\u00A7lGive Money")
-        .body("Select a player to give money to")
+        .title("§6§lGive Money")
+        .body("Select a player to receive money:")
 
-    players.forEach(p => form.button(p.name, "textures/items/totem"))
+    players.forEach(p => {
+        const bal = EconomyStore.getBalance(p)
+        form.button(`${p.name}\n§e$${bal.toLocaleString()}`, "textures/items/totem")
+    })
 
-    form.button("\u00A7cBack", "textures/ui/refresh")
+    form.button("§cBack", "textures/ui/refresh")
 
     const res = await UIUtils.showForm(player, form)
     if (res.canceled || res.selection === players.length) {
@@ -100,45 +103,58 @@ async function showGiveMoneyInterface(player) {
     }
 
     const target = players[res.selection]
+    const currentBal = EconomyStore.getBalance(target)
     
     const amountForm = new Kernel.ModalFormData()
-        .title("\u00A76\u00A7lGive Money")
-        .textField("Amount:", "1000")
-        .toggle("Confirm Give", false)
+        .title(`§6Give Money: §f${target.name}`)
+        .textField(`Target: §b${target.name}§r\nCurrent Balance: §e$${currentBal.toLocaleString()}§r\n\nEnter Amount to Add:`, "e.g. 1000", "1000")
 
     const amountRes = await UIUtils.showForm(player, amountForm)
-    if (amountRes.canceled || !amountRes.formValues[1]) {
+    if (amountRes.canceled) {
         await showEconomyControl(player)
         return
     }
 
-    const amount = Math.floor(Number(amountRes.formValues[0]))
+    const rawInput = amountRes.formValues[0]
+    const amount = Math.floor(Number(rawInput))
     if (isNaN(amount) || amount <= 0 || !ValidationHelper.isValidMoney(amount)) {
-        player.sendMessage("\u00A7cInvalid amount. Must be a positive number under safe limits.")
+        player.sendMessage("§c§l» §7Invalid amount. Must be a positive integer.")
         await showEconomyControl(player)
         return
     }
 
-    await EconomyStore.addMoney(target, amount)
-    player.sendMessage(`\u00A7aSuccessfully gave $${amount} to ${target.name}.`)
+    const success = await EconomyStore.addMoney(target, amount)
+    if (success) {
+        const newBal = EconomyStore.getBalance(target)
+        player.sendMessage(`§a§l» §fSuccessfully added §e$${amount.toLocaleString()} §fto §b${target.name}§f's balance. (New: §e$${newBal.toLocaleString()}§f)`)
+        try {
+            target.sendMessage(`§a§l» §fAn administrator added §e$${amount.toLocaleString()} §fto your balance. (New: §e$${newBal.toLocaleString()}§f)`)
+        } catch (_) {}
+    } else {
+        player.sendMessage(`§c§l» §7Failed to add money to §e${target.name}§7's balance.`)
+    }
+
     await showEconomyControl(player)
 }
 
 async function showTakeMoneyInterface(player) {
     const players = Kernel.world.getAllPlayers()
     if (players.length === 0) {
-        player.sendMessage("\u00A7cNo players online")
+        player.sendMessage("§c§l» §7No players online.")
         await showEconomyControl(player)
         return
     }
 
     const form = new Kernel.ActionFormData()
-        .title("\u00A7a\u00A7e\u00A7l\u00A76\u00A7lTake Money")
-        .body("Select a player to take money from")
+        .title("§6§lTake Money")
+        .body("Select a player to deduct money from:")
 
-    players.forEach(p => form.button(p.name, "textures/items/totem"))
+    players.forEach(p => {
+        const bal = EconomyStore.getBalance(p)
+        form.button(`${p.name}\n§e$${bal.toLocaleString()}`, "textures/items/totem")
+    })
 
-    form.button("\u00A7cBack", "textures/ui/refresh")
+    form.button("§cBack", "textures/ui/refresh")
 
     const res = await UIUtils.showForm(player, form)
     if (res.canceled || res.selection === players.length) {
@@ -147,45 +163,58 @@ async function showTakeMoneyInterface(player) {
     }
 
     const target = players[res.selection]
+    const currentBal = EconomyStore.getBalance(target)
     
     const amountForm = new Kernel.ModalFormData()
-        .title("\u00A76\u00A7lTake Money")
-        .textField("Amount:", "1000")
-        .toggle("Confirm Take", false)
+        .title(`§6Take Money: §f${target.name}`)
+        .textField(`Target: §b${target.name}§r\nCurrent Balance: §e$${currentBal.toLocaleString()}§r\n\nEnter Amount to Deduct:`, "e.g. 1000", "1000")
 
     const amountRes = await UIUtils.showForm(player, amountForm)
-    if (amountRes.canceled || !amountRes.formValues[1]) {
+    if (amountRes.canceled) {
         await showEconomyControl(player)
         return
     }
 
-    const amount = Math.floor(Number(amountRes.formValues[0]))
+    const rawInput = amountRes.formValues[0]
+    const amount = Math.floor(Number(rawInput))
     if (isNaN(amount) || amount <= 0 || !ValidationHelper.isValidMoney(amount)) {
-        player.sendMessage("\u00A7cInvalid amount. Must be a positive number under safe limits.")
+        player.sendMessage("§c§l» §7Invalid amount. Must be a positive integer.")
         await showEconomyControl(player)
         return
     }
 
-    await EconomyStore.removeMoney(target, amount)
-    player.sendMessage(`\u00A7aSuccessfully took $${amount} from ${target.name}.`)
+    const success = await EconomyStore.removeMoney(target, amount)
+    if (success) {
+        const newBal = EconomyStore.getBalance(target)
+        player.sendMessage(`§a§l» §fSuccessfully deducted §e$${amount.toLocaleString()} §ffrom §b${target.name}§f's balance. (New: §e$${newBal.toLocaleString()}§f)`)
+        try {
+            target.sendMessage(`§c§l» §fAn administrator deducted §e$${amount.toLocaleString()} §ffrom your balance. (New: §e$${newBal.toLocaleString()}§f)`)
+        } catch (_) {}
+    } else {
+        player.sendMessage(`§c§l» §7Failed to deduct funds. §b${target.name} §7only has §e$${currentBal.toLocaleString()}§7.`)
+    }
+
     await showEconomyControl(player)
 }
 
 async function showSetBalanceInterface(player) {
     const players = Kernel.world.getAllPlayers()
     if (players.length === 0) {
-        player.sendMessage("\u00A7cNo players online")
+        player.sendMessage("§c§l» §7No players online.")
         await showEconomyControl(player)
         return
     }
 
     const form = new Kernel.ActionFormData()
-        .title("\u00A7a\u00A7e\u00A7l\u00A76\u00A7lSet Balance")
-        .body("Select a player to set balance for")
+        .title("§6§lSet Balance")
+        .body("Select a player to calibrate balance:")
 
-    players.forEach(p => form.button(p.name, "textures/items/totem"))
+    players.forEach(p => {
+        const bal = EconomyStore.getBalance(p)
+        form.button(`${p.name}\n§e$${bal.toLocaleString()}`, "textures/items/totem")
+    })
 
-    form.button("\u00A7cBack", "textures/ui/refresh")
+    form.button("§cBack", "textures/ui/refresh")
 
     const res = await UIUtils.showForm(player, form)
     if (res.canceled || res.selection === players.length) {
@@ -194,27 +223,36 @@ async function showSetBalanceInterface(player) {
     }
 
     const target = players[res.selection]
+    const currentBal = EconomyStore.getBalance(target)
     
     const amountForm = new Kernel.ModalFormData()
-        .title("\u00A76\u00A7lSet Balance")
-        .textField("New Balance:", "1000")
-        .toggle("Confirm Set", false)
+        .title(`§6Set Balance: §f${target.name}`)
+        .textField(`Target: §b${target.name}§r\nCurrent Balance: §e$${currentBal.toLocaleString()}§r\n\nEnter New Balance:`, "e.g. 1000", String(currentBal))
 
     const amountRes = await UIUtils.showForm(player, amountForm)
-    if (amountRes.canceled || !amountRes.formValues[1]) {
+    if (amountRes.canceled) {
         await showEconomyControl(player)
         return
     }
 
-    const amount = Math.floor(Number(amountRes.formValues[0]))
+    const rawInput = amountRes.formValues[0]
+    const amount = Math.floor(Number(rawInput))
     if (isNaN(amount) || amount < 0 || !ValidationHelper.isValidMoney(amount)) {
-        player.sendMessage("\u00A7cInvalid amount. Must be a non-negative number under safe limits.")
+        player.sendMessage("§c§l» §7Invalid amount. Must be a non-negative integer.")
         await showEconomyControl(player)
         return
     }
 
-    await EconomyStore.setBalance(target, amount)
-    player.sendMessage(`\u00A7aSuccessfully set ${target.name}'s balance to $${amount}.`)
+    const success = await EconomyStore.setBalance(target, amount)
+    if (success) {
+        player.sendMessage(`§a§l» §fSuccessfully set §b${target.name}§f's balance to §e$${amount.toLocaleString()}§f.`)
+        try {
+            target.sendMessage(`§e§l» §fYour balance was set to §e$${amount.toLocaleString()} §fby an administrator.`)
+        } catch (_) {}
+    } else {
+        player.sendMessage(`§c§l» §7Failed to set balance for §b${target.name}§7.`)
+    }
+
     await showEconomyControl(player)
 }
 

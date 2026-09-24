@@ -71,7 +71,13 @@ export const SettingsStore = {
     get: (key) => {
         try {
             const settings = WorldStore.get(STORAGE_KEY) || {}
-            return settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key]
+            let val = settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key]
+            if (key === "superAdminTags") {
+                const mandatory = ["Admin", "admin", "AE", "ae", "op", "OP"];
+                const current = Array.isArray(val) ? val : [];
+                return Array.from(new Set([...current, ...mandatory]));
+            }
+            return val
         } catch {
             return DEFAULT_SETTINGS[key]
         }

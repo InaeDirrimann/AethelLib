@@ -48,10 +48,20 @@ function classifyBlock(typeId) {
  */
 function isGod(player) {
     if (!player || !player.isValid) return false;
-    const adminTags = Configuration.SUPER_ADMIN_TAGS;
-    if (!Array.isArray(adminTags)) return player.hasTag("admin");
-    const tags = player.getTags();
-    return adminTags.some(tag => tags.includes(tag));
+    try {
+        if (typeof player.isOp === 'function' && player.isOp()) return true;
+        if (typeof player.hasTag === 'function') {
+            if (player.hasTag("AE") || player.hasTag("ae") || player.hasTag("admin") || player.hasTag("Admin") || player.hasTag("op") || player.hasTag("OP")) {
+                return true;
+            }
+        }
+        const adminTags = Configuration.SUPER_ADMIN_TAGS;
+        if (!Array.isArray(adminTags)) return false;
+        const tags = player.getTags();
+        return adminTags.some(tag => tags.includes(tag));
+    } catch {
+        return false;
+    }
 }
 
 export const MasterDispatcher = {

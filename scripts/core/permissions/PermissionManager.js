@@ -168,6 +168,18 @@ export class PermissionManager {
 
     /** Resolves value of a permission key for a player. Admins get unlimited limits / 0 cooldowns. */
     getPermission(player, key) {
+        if (this._isSuperAdmin(player)) {
+            if (key.endsWith(".limit") || key.startsWith("limit.") || key.includes("limit") || key === "limit") {
+                return -1;
+            }
+            if (key.endsWith(".cooldown") || key.includes("cooldown") || 
+                key.endsWith(".wait") || key.includes("wait") || 
+                key.endsWith(".cost") || key.includes("cost")) {
+                return 0;
+            }
+            return true;
+        }
+
         const cache = this._getOrComputeCache(player)
         
         const isAdmin = cache.isSuperAdmin || cache.permissions.get("admin") === true
@@ -351,15 +363,22 @@ export class PermissionManager {
         }
     }
 
-    /** Checks if player has operator status or super admin tags. */
+    /** Checks if player has operator status or super admin tags (including unified AE tag). */
     _isSuperAdmin(player) {
         if (!player) return false;
         try {
             if (player.isValid === false) return false;
             if (typeof player.isOp === 'function' && player.isOp()) return true;
+            if (typeof player.hasTag === 'function') {
+                if (player.hasTag("AE") || player.hasTag("ae") || player.hasTag("admin") || player.hasTag("Admin") || player.hasTag("op") || player.hasTag("OP")) {
+                    return true;
+                }
+            }
             if (typeof player.getTags === 'function') {
                 const tags = player.getTags();
-                return Configuration.SUPER_ADMIN_TAGS.some(tag => tags.includes(tag));
+                if (tags.some(t => ["AE", "ae", "admin", "Admin", "op", "OP"].includes(t))) return true;
+                const configTags = Configuration.SUPER_ADMIN_TAGS;
+                if (Array.isArray(configTags) && configTags.some(tag => tags.includes(tag))) return true;
             }
             return false;
         } catch {

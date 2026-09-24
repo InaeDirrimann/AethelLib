@@ -1,5 +1,6 @@
 /**
- * Banknote Store - Manages physical paper money items
+ * Banknote Store - Manages physical paper banknote items
+ * Compatible with Minecraft Essentials Remake and AethelLib formats.
  */
 
 import { Kernel } from "../../core/Kernel.js"
@@ -9,162 +10,94 @@ export class BanknoteStore {
         return "minecraft:paper"
     }
 
-    static createBanknote(amount, creatorId, creatorName) {
-        const timestamp = Date.now()
-        const noteId = this.generateNoteId(timestamp, creatorId)
-        
-        return {
-            id: noteId,
-            amount: amount,
-            creator: creatorName,
-            creatorId: creatorId,
-            timestamp: timestamp,
-            redeemed: false
-        }
-    }
-
-    static generateNoteId(timestamp, creatorId) {
-        return `banknote_${timestamp}_${creatorId.slice(0, 8)}_${Math.random().toString(36).substr(2, 6)}`
-    }
-
-    static serializeBanknote(banknote) {
-        return JSON.stringify(banknote)
-    }
-
-    static deserializeBanknote(data) {
-        try {
-            return JSON.parse(data)
-        } catch (error) {
-            console.error(`Failed to deserialize banknote: ${error}`)
-            return null
-        }
-    }
-
-    static getBanknoteLore(banknote) {
-        const date = new Date(banknote.timestamp).toLocaleDateString()
-        const time = new Date(banknote.timestamp).toLocaleTimeString()
-        
-        return [
-            `\u00A76Value: \u00A7e${this.formatMoney(banknote.amount)}`,
-            `\u00A77Created: ${date} ${time}`,
-            `\u00A77By: \u00A7f${banknote.creator}`,
-            `\u00A78ID: ${banknote.id}`,
-            `\u00A77\u00A7oRight-click to redeem`
-        ]
-    }
-
+    /**
+     * Formats money for banknote display
+     * @param {number} amount 
+     * @returns {string}
+     */
     static formatMoney(amount) {
-        return `\u00A76$\u00A7e${amount.toLocaleString()}`
+        return `\u00A7e$${amount.toLocaleString()}`
     }
 
-    static getBanknoteName(amount) {
-        if (amount >= 1000000) return `\u00A76\u00A7lBanknote \u00A7e\u00A7l${(amount / 1000000).toFixed(1)}M`
-        if (amount >= 1000) return `\u00A76\u00A7lBanknote \u00A7e\u00A7l${(amount / 1000).toFixed(1)}K`
-        return `\u00A76\u00A7lBanknote \u00A7e\u00A7l${amount}`
+    /**
+     * Creates a single banknote ItemStack for a given integer amount
+     * @param {number} amount - Exact monetary value of the note
+     * @param {string} [creatorName=""] - Name of the creator
+     * @returns {import("@minecraft/server").ItemStack}
+     */
+    static createBanknoteItem(amount, creatorName = "") {
+        const item = new Kernel.ItemStack("minecraft:paper", 1);
+        item.nameTag = `\u00A7r\u00A7e$${amount.toLocaleString()} \u00A7fBanknote`;
+        
+        const dateStr = new Date().toLocaleDateString();
+        const lore = [
+            "",
+            `\u00A7r\u00A7eValue: \u00A7r${amount}`,
+            `\u00A7r\u00A7eCreated: \u00A7r${dateStr}`
+        ];
+        if (creatorName) {
+            lore.push(`\u00A7r\u00A77Signer: \u00A7f${creatorName}`);
+        }
+        lore.push("\u00A7r\u00A77Right-click to claim");
+
+        item.setLore(lore);
+        try {
+            item.setDynamicProperty("ae:banknote_value", amount);
+        } catch (_) {}
+
+        return item;
     }
 
+    /**
+     * Extracts monetary value from a paper banknote item
+     * Checks dynamic properties first, then parses lore (supporting Essentials Remake and legacy AethelLib)
+     * @param {import("@minecraft/server").ItemStack} item 
+     * @returns {number|null} The banknote value, or null if not a valid banknote
+     */
+    static parseBanknoteValue(item) {
+        if (!item || item.typeId !== "minecraft:paper") return null;
+
+        // 1. Dynamic property check (tamper-proof)
+        try {
+            const propVal = item.getDynamicProperty("ae:banknote_value");
+            if (typeof propVal === "number" && Number.isInteger(propVal) && propVal > 0) {
+                return propVal;
+            }
+        } catch (_) {}
+
+        // 2. Parse Lore lines
+        try {
+            const lore = item.getLore();
+            if (!lore || lore.length === 0) return null;
+
+            for (const rawLine of lore) {
+                // Strip Minecraft color codes
+                const line = rawLine.replace(/\u00A7[0-9a-fk-or]/gi, "").trim();
+
+                // Essentials Remake pattern: "Value: 1000"
+                // AethelLib pattern: "Value: $1,000"
+                if (line.toLowerCase().startsWith("value:")) {
+                    const numStr = line.slice(6).replace(/[^0-9]/g, "");
+                    const val = parseInt(numStr, 10);
+                    if (!isNaN(val) && val > 0) return val;
+                }
+            }
+        } catch (_) {}
+
+        return null;
+    }
+
+    /**
+     * Checks if an item is a valid banknote
+     * @param {import("@minecraft/server").ItemStack} item 
+     * @returns {boolean}
+     */
     static isBanknoteItem(item) {
-        if (!item || item.typeId !== this.getBanknoteId()) return false
-        if (!item.nameTag || !item.nameTag.startsWith("\u00A76\u00A7lBanknote")) return false
-        if (!item.getLore() || item.getLore().length === 0) return false
-        return true
-    }
-
-    static extractBanknoteData(item) {
-        if (!this.isBanknoteItem(item)) return null
-        
-        let noteId = null;
-        try { noteId = item.getDynamicProperty("ae:banknote_id") } catch (e) {}
-
-        if (!noteId) {
-            const lore = item.getLore()
-            const idLine = lore?.find(line => line.startsWith("\u00A78ID: "))
-            if (idLine) noteId = idLine.replace("\u00A78ID: ", "")
-        }
-        
-        if (!noteId) return null
-        return this.getBanknoteData(noteId)
-    }
-
-    static storeBanknoteData(banknote) {
-        try {
-            const Database = Kernel.get("database")
-            const banknotes = this.getAllBanknotes()
-            banknotes[banknote.id] = banknote
-            
-            Database.set("ae:banknotes", banknotes)
-            return true
-        } catch (error) {
-            console.error(`Failed to store banknote data: ${error}`)
-            return false
-        }
-    }
-
-    static getBanknoteData(noteId) {
-        try {
-            const banknotes = this.getAllBanknotes()
-            return banknotes[noteId] || null
-        } catch (error) {
-            console.error(`Failed to get banknote data: ${error}`)
-            return null
-        }
-    }
-
-    static getAllBanknotes() {
-        try {
-            const Database = Kernel.get("database")
-            const stored = Database.get("ae:banknotes")
-            return stored || {}
-        } catch (error) {
-            console.error(`Failed to load banknotes: ${error}`)
-            return {}
-        }
-    }
-
-    static markRedeemed(noteId) {
-        try {
-            const Database = Kernel.get("database")
-            const banknotes = this.getAllBanknotes()
-            if (banknotes[noteId]) {
-                banknotes[noteId].redeemed = true
-                banknotes[noteId].redeemedAt = Date.now()
-                Database.set("ae:banknotes", banknotes)
-                return true
-            }
-            return false
-        } catch (error) {
-            console.error(`Failed to mark banknote as redeemed: ${error}`)
-            return false
-        }
-    }
-
-    static cleanupOldBanknotes() {
-        const banknotes = this.getAllBanknotes()
-        const now = Date.now()
-        const thirtyDays = 30 * 24 * 60 * 60 * 1000
-        
-        let cleaned = 0
-        
-        for (const [noteId, banknote] of Object.entries(banknotes)) {
-            // Remove redeemed banknotes older than 30 days
-            if (banknote.redeemed && (now - banknote.redeemedAt) > thirtyDays) {
-                delete banknotes[noteId]
-                cleaned++
-            }
-        }
-        
-        if (cleaned > 0) {
-            const Database = Kernel.get("database")
-            Database.set("ae:banknotes", banknotes)
-            console.log(`Cleaned up ${cleaned} old redeemed banknotes`)
-        }
+        return this.parseBanknoteValue(item) !== null;
     }
 }
 
-// Called during boot (Stage 3) to start periodic cleanup.
-// Must NOT run at module import time — Bedrock throws in early-execution mode.
+// Retain init function to satisfy bootstrap/systems.js imports
 export function initBanknoteCleanup() {
-    Kernel.system.runInterval(() => {
-        BanknoteStore.cleanupOldBanknotes()
-    }, 20 * 60 * 60) // Every hour
+    // Stateless banknote system requires no periodic DB sweep
 }

@@ -150,128 +150,66 @@ async function showTopMoneyUI(player) {
 
 async function _processWithdrawal(player, amount) {
     try {
-        const removed = await EconomyStore.removeMoney(player.id, amount);
-        if (!removed) {
-            player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to withdraw money.");
+        const invComp = player.getComponent(Kernel.EntityComponentTypes.Inventory);
+        const container = invComp?.container;
+        if (!container || container.emptySlotsCount <= 0) {
+            player.sendMessage("§c§l» §7Your inventory is full! Make space before withdrawing.");
             return;
         }
 
-        const created = createBanknotes(player, amount);
-        if (created > 0) {
-            player.sendMessage(`\u00A7a\u00A7l» \u00A7fSuccessfully withdrew ${BanknoteStore.formatMoney(amount)} into ${created} banknote(s)`);
-            player.sendMessage("\u00A77Right-click banknotes to redeem them");
-        } else {
-            await EconomyStore.addMoney(player.id, amount);
-            player.sendMessage("\u00A7c\u00A7l» \u00A77Failed to create banknotes. Money refunded.");
+        const removed = await EconomyStore.removeMoney(player, amount);
+        if (!removed) {
+            player.sendMessage("§c§l» §7Failed to withdraw money. Account sync error.");
+            return;
         }
+
+        const item = BanknoteStore.createBanknoteItem(amount, player.name);
+        const leftover = container.addItem(item);
+        if (leftover !== undefined) {
+            await EconomyStore.addMoney(player, amount);
+            player.sendMessage("§c§l» §7Could not fit banknote in inventory. Money refunded.");
+            return;
+        }
+
+        player.sendMessage(`§a§l» §fSuccessfully withdrew §e$${amount.toLocaleString()} §finto a banknote.`);
+        player.sendMessage("§7Right-click with the banknote in hand to redeem it.");
+        try {
+            player.playSound("random.levelup", { volume: 0.5, pitch: 1.5 });
+        } catch (_) {}
     } catch (error) {
         console.error(`Withdraw UI error: ${error}`);
-        player.sendMessage("\u00A7c\u00A7l» \u00A77An error occurred during withdrawal.");
-        await EconomyStore.addMoney(player.id, amount);
+        player.sendMessage("§c§l» §7An error occurred during withdrawal.");
+        await EconomyStore.addMoney(player, amount);
     }
 }
 
 async function showWithdrawUI(player) {
-    const balance = EconomyStore.getBalance(player.id);
+    const balance = EconomyStore.getBalance(player);
     const form = new Kernel.ModalFormData()
-        .title("\u00A76\u00A7lWITHDRAW BANKNOTE")
-        .textField(`Amount to withdraw:\n(Min: $100, Max: $1,000,000)\nBalance: $${balance.toLocaleString()}`, "e.g. 10000");
+        .title("§6§lWITHDRAW BANKNOTE")
+        .textField(`Current Balance: §e$${balance.toLocaleString()}§r\n\nEnter amount to withdraw:`, "e.g. 1000", "1000");
 
     const res = await UIUtils.showForm(player, form);
     if (res.canceled) return showEconomyMenu(player);
 
-    const amount = parseInt(res.formValues[0]);
-    if (isNaN(amount) || amount <= 0) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Invalid amount.");
+    const amount = Math.floor(Number(res.formValues[0]));
+    if (isNaN(amount) || amount <= 0 || !Number.isInteger(amount)) {
+        player.sendMessage("§c§l» §7Please enter a valid positive integer amount.");
         return showEconomyMenu(player);
     }
 
-    if (amount < 100) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Minimum withdrawal amount is \u00A7e$100");
-        return showEconomyMenu(player);
-    }
-
-    if (amount > 1000000) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Maximum withdrawal amount is \u00A7e$1,000,000");
-        return showEconomyMenu(player);
-    }
-
-    const currentBalance = EconomyStore.getBalance(player.id);
+    const currentBalance = EconomyStore.getBalance(player);
     if (currentBalance < amount) {
-        player.sendMessage("\u00A7c\u00A7l» \u00A77Insufficient funds.");
+        player.sendMessage(`§c§l» §7Insufficient funds. You only have §e$${currentBalance.toLocaleString()}§7.`);
         return showEconomyMenu(player);
     }
 
-    const requiredSlots = Math.ceil(amount / 64000);
-    const availableSlots = getAvailableInventorySlots(player);
-    if (availableSlots < requiredSlots) {
-        player.sendMessage(`\u00A7c\u00A7l» \u00A77Not enough inventory space. Need ${requiredSlots} slots, have ${availableSlots}`);
+    const invComp = player.getComponent(Kernel.EntityComponentTypes.Inventory);
+    const container = invComp?.container;
+    if (!container || container.emptySlotsCount <= 0) {
+        player.sendMessage("§c§l» §7Your inventory is full! Make space before withdrawing.");
         return showEconomyMenu(player);
     }
 
     Kernel.system.run(() => _processWithdrawal(player, amount));
-    Kernel.system.runTimeout(() => showEconomyMenu(player), 10);
-}
-
-function createBanknotes(player, totalAmount) {
-    const denominations = [1000000, 500000, 100000, 50000, 10000, 5000, 1000, 500, 100];
-    let remaining = totalAmount;
-    let created = 0;
-
-    for (const denom of denominations) {
-        while (remaining >= denom) {
-            const banknote = BanknoteStore.createBanknote(denom, player.id, player.name);
-            
-            if (!BanknoteStore.storeBanknoteData(banknote)) {
-                console.error(`Failed to store banknote data for ${banknote.id}`);
-                continue;
-            }
-
-            const item = new Kernel.ItemStack(BanknoteStore.getBanknoteId(), 1);
-            item.nameTag = BanknoteStore.getBanknoteName(denom);
-            item.setLore(BanknoteStore.getBanknoteLore(banknote));
-            
-            try { item.setDynamicProperty("ae:banknote_id", banknote.id); } catch (e) {}
-            
-            const container = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container; // container?.
-            const leftover = container.addItem(item);
-            
-            if (leftover === undefined) {
-                remaining -= denom;
-                created++;
-            } else {
-                break;
-            }
-        }
-        
-        if (remaining < 100) break;
-    }
-
-    if (remaining > 0) {
-        EconomyStore.addMoney(player.id, remaining);
-        player.sendMessage(`\u00A77Could not convert ${BanknoteStore.formatMoney(remaining)} - refunded to account`);
-    }
-
-    return created;
-}
-
-function getAvailableInventorySlots(player) {
-    try {
-        const container = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container; // container?.
-        let available = 0;
-        
-        for (let i = 0; i < container.size; i++) {
-            const item = container.getItem(i);
-            if (!item) {
-                available++;
-            } else if (item.typeId === BanknoteStore.getBanknoteId() && item.amount < 64) {
-                available++;
-            }
-        }
-        
-        return available;
-    } catch (error) {
-        console.error(`Failed to check inventory space: ${error}`);
-        return 0;
-    }
 }
