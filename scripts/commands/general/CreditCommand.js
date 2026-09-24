@@ -47,7 +47,7 @@ export const CreditCommand = {
         player.sendMessage("\u00A78━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         // system philosophy footer.
         player.sendMessage("\u00A77Optimized for high-performance survival gameplay.");
-        player.sendMessage("\u00A77Version: \u00A7e1.26.40 \u00A77| \u00A7fClean Build");
+        player.sendMessage("\u00A77Version: \u00A7e1.5.0 \u00A77| Game: \u00A7b1.26.51 \u00A77| \u00A7fClean Build");
         player.sendMessage(" ");
     }
 };

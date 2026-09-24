@@ -1,6 +1,6 @@
 {
   "name": "aethelgrad-essentials",
-  "version": "1.1.6",
+  "version": "1.5.0",
   "description": "Clean, secure Minecraft Bedrock Essentials addon",
   "main": "scripts/main.js",
   "type": "module",
