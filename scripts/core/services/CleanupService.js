@@ -2,27 +2,17 @@ import { Kernel } from "../Kernel.js";
 import { JournaledDb } from "../datastore/JournaledDatabase.js";
 
 /*
- * INDUSTRIAL_CLEANUP_ORCHESTRATOR
+ * CleanupService
  * ----------------------------------------------------------------------------
- * A high-performance maintenance engine designed to prevent memory-leaks 
- * and data-buffer saturation. Orchestrates the de-registration of entity 
- * data across multiple industrial sub-systems upon session termination.
- *
- * PHILOSOPHY: Stale data is technical debt. When an entity leaves the 
- * buffer, its associated state must be purged to maintain Kernel.system 
- * integrity.
+ * Maintenance service to prevent memory leaks and stale caches.
+ * Cleans up player session data across systems when players leave the server.
  */
 export class CleanupService {
     /**
-     * EXPECTS:
-     * - None.
-     * 
-     * GUARANTEES:
-     * - Instantiates the cleanupHandlers registry Map.
-     * - Binds default values to initialization and listener trackers.
+     * Instantiates the cleanupHandlers registry Map.
      */
     constructor() {
-        this.cleanupHandlers = new Map() // REGISTRY_OF_PURGE_VECTORS
+        this.cleanupHandlers = new Map()
         this._isInitialized = false
         this.playerLeaveSubscription = null
         this.cleanupIntervalId = null
@@ -33,15 +23,6 @@ export class CleanupService {
 
     /**
      * Registers unified playerLeave event subscription and schedules maintenance interval.
-     * 
-     * EXPECTS:
-     * - Kernel.world.afterEvents.playerLeave exists.
-     * - Kernel.system exists.
-     * 
-     * GUARANTEES:
-     * - Prevents duplicate initialization subscriptions.
-     * - Registers playerLeave listener and records reference to prevent leaks.
-     * - Runs performPeriodicCleanup recurringly every 5 minutes (6000 ticks) and records interval ID.
      */
     init() {
         if (this._isInitialized) return;
@@ -53,7 +34,7 @@ export class CleanupService {
 
         this.cleanupIntervalId = Kernel.system.runInterval(() => {
             this.performPeriodicCleanup()
-        }, 5 * 60 * 20) // 5-minute industrial interval
+        }, 5 * 60 * 20) // 5-minute cleanup interval
 
         console.log("[CleanupService] Maintenance engine active.");
     }
@@ -149,15 +130,6 @@ export class CleanupService {
      * Core player database record purge helper.
      */
     cleanupPlayerData(playerId) {
-        // Run registered cleanup handlers for this specific player
-        for (const [systemName, cleanupFunction] of this.cleanupHandlers) {
-            try {
-                cleanupFunction(playerId);
-            } catch (error) {
-                console.error(`[CleanupService] PLAYER_CLEANUP_FAILURE for '${systemName}': ${error}`);
-            }
-        }
-
         // Clear per-player cached data
         try {
             const CacheManager = Kernel.get("cache");
@@ -171,19 +143,6 @@ export class CleanupService {
             }
         } catch (error) {
             console.error(`[CleanupService] PLAYER_CACHE_CLEAR_FAILURE for ${playerId}: ${error}`);
-        }
-
-        // Clear per-player dynamic properties
-        try {
-            const onlinePlayer = Kernel.world.getAllPlayers().find(p => p.id === playerId);
-            if (onlinePlayer) {
-                const props = ["ae:last_cmd_tick", "ae:reply_target", "ae:back_coords"];
-                for (const prop of props) {
-                    try { onlinePlayer.setDynamicProperty(prop, undefined); } catch (_) {}
-                }
-            }
-        } catch (error) {
-            console.error(`[CleanupService] PLAYER_PROP_CLEAR_FAILURE for ${playerId}: ${error}`);
         }
     }
 

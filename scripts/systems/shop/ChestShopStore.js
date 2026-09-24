@@ -12,9 +12,9 @@ export const ChestShopStore = {
     // | locationToKey                                                            |
     // | converts a 3d vector into a flat string key for map indexing.            |
     // ----------------------------------------------------------------------------
-    locationToKey(loc) {
-        // use floored coordinates to avoid precision issues with float math.
-        return `${Math.floor(loc.x)},${Math.floor(loc.y)},${Math.floor(loc.z)}`
+    locationToKey(loc, dimensionId = null) {
+        const dim = dimensionId || loc?.dimensionId || loc?.dimension?.id || "minecraft:overworld"
+        return `${dim}:${Math.floor(loc.x)},${Math.floor(loc.y)},${Math.floor(loc.z)}`
     },
 
     // ----------------------------------------------------------------------------
@@ -22,9 +22,9 @@ export const ChestShopStore = {
     // | maps a world coordinate to its corresponding 16x16 chunk grid.           |
     // | used to shard the shop database so we don't load 10,000 shops at once.    |
     // ----------------------------------------------------------------------------
-    locationToChunkKey(loc) {
-        // bit shift right by 4 is the same as divide by 16.
-        return `${Math.floor(loc.x) >> 4},${Math.floor(loc.z) >> 4}`
+    locationToChunkKey(loc, dimensionId = null) {
+        const dim = dimensionId || loc?.dimensionId || loc?.dimension?.id || "minecraft:overworld"
+        return `${dim}:${Math.floor(loc.x) >> 4},${Math.floor(loc.z) >> 4}`
     },
 
     // ----------------------------------------------------------------------------
@@ -56,21 +56,22 @@ export const ChestShopStore = {
     // | getShop                                                                  |
     // | finds a shop definition by the location of its sign.                     |
     // ----------------------------------------------------------------------------
-    getShop(signLocation) {
+    getShop(signLocation, dimensionId = null) {
+        const dim = dimensionId || signLocation?.dimensionId || signLocation?.dimension?.id || "minecraft:overworld"
         // find which chunk this sign belongs to.
-        const chunkKey = this.locationToChunkKey(signLocation)
+        const chunkKey = this.locationToChunkKey(signLocation, dim)
         // get all shops in that chunk.
         const shops = this.getShopsInChunk(chunkKey)
         // look up the specific sign location in the chunk's map.
-        return shops[this.locationToKey(signLocation)] || null
+        return shops[this.locationToKey(signLocation, dim)] || null
     },
 
     // ----------------------------------------------------------------------------
     // | isShop                                                                   |
     // | checks if a shop exists at the given sign location.                      |
     // ----------------------------------------------------------------------------
-    isShop(signLocation) {
-        return this.getShop(signLocation) !== null
+    isShop(signLocation, dimensionId = null) {
+        return this.getShop(signLocation, dimensionId) !== null
     },
 
     // ----------------------------------------------------------------------------
@@ -78,10 +79,11 @@ export const ChestShopStore = {
     // | registers a new chest shop in the database.                              |
     // ----------------------------------------------------------------------------
     createShop(data) {
+        const dim = data.dimensionId || data.signLocation?.dimensionId || data.signLocation?.dimension?.id || "minecraft:overworld"
         // figure out the sharding key.
-        const chunkKey = this.locationToChunkKey(data.signLocation)
+        const chunkKey = this.locationToChunkKey(data.signLocation, dim)
         const shops = this.getShopsInChunk(chunkKey)
-        const signKey = this.locationToKey(data.signLocation)
+        const signKey = this.locationToKey(data.signLocation, dim)
 
         // don't allow duplicate shops at the same location.
         if (shops[signKey]) return false 
@@ -96,15 +98,18 @@ export const ChestShopStore = {
             quantity: data.quantity || 1,
             // 'buy' (player buys from shop) or 'sell' (player sells to shop).
             type: data.type, 
+            dimensionId: dim,
             chestLocation: {
                 x: Math.floor(data.chestLocation.x),
                 y: Math.floor(data.chestLocation.y),
-                z: Math.floor(data.chestLocation.z)
+                z: Math.floor(data.chestLocation.z),
+                dimensionId: dim
             },
             signLocation: {
                 x: Math.floor(data.signLocation.x),
                 y: Math.floor(data.signLocation.y),
-                z: Math.floor(data.signLocation.z)
+                z: Math.floor(data.signLocation.z),
+                dimensionId: dim
             },
             // record when this thing was created for logs.
             created: Date.now()
@@ -119,10 +124,11 @@ export const ChestShopStore = {
     // | removeShop                                                               |
     // | deletes a shop record.                                                   |
     // ----------------------------------------------------------------------------
-    removeShop(signLocation) {
-        const chunkKey = this.locationToChunkKey(signLocation)
+    removeShop(signLocation, dimensionId = null) {
+        const dim = dimensionId || signLocation?.dimensionId || signLocation?.dimension?.id || "minecraft:overworld"
+        const chunkKey = this.locationToChunkKey(signLocation, dim)
         const shops = this.getShopsInChunk(chunkKey)
-        const signKey = this.locationToKey(signLocation)
+        const signKey = this.locationToKey(signLocation, dim)
 
         // if it doesn't exist, we can't delete it.
         if (!shops[signKey]) return false
@@ -143,9 +149,10 @@ export const ChestShopStore = {
         // sanity check.
         if (!shop || !shop.signLocation) return false
         
-        const chunkKey = this.locationToChunkKey(shop.signLocation)
+        const dim = shop.dimensionId || shop.signLocation?.dimensionId || "minecraft:overworld"
+        const chunkKey = this.locationToChunkKey(shop.signLocation, dim)
         const shops = this.getShopsInChunk(chunkKey)
-        const signKey = this.locationToKey(shop.signLocation)
+        const signKey = this.locationToKey(shop.signLocation, dim)
 
         // if the shop was deleted while we were processing, bail.
         if (!shops[signKey]) return false
@@ -162,15 +169,16 @@ export const ChestShopStore = {
     // | helper to find a shop by its chest instead of its sign.                  |
     // | used for protecting chests from being broken by non-owners.              |
     // ----------------------------------------------------------------------------
-    findShopByChestLocation(location) {
-        const chunkKey = this.locationToChunkKey(location)
+    findShopByChestLocation(location, dimensionId = null) {
+        const dim = dimensionId || location?.dimensionId || location?.dimension?.id || "minecraft:overworld"
+        const chunkKey = this.locationToChunkKey(location, dim)
         const shops = this.getShopsInChunk(chunkKey)
-        const locKey = this.locationToKey(location)
+        const locKey = this.locationToKey(location, dim)
 
         // we have to loop through all shops in the chunk because multiple signs 
         // could potentially point to the same chest (though we try to prevent that).
         for (const shop of Object.values(shops)) {
-            if (this.locationToKey(shop.chestLocation) === locKey) {
+            if (this.locationToKey(shop.chestLocation, shop.dimensionId || dim) === locKey) {
                 return shop
             }
         }

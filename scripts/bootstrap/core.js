@@ -86,6 +86,9 @@ export function init() {
     Kernel.register("logStore", LogStore)
 
     // Start event-driven subsystems
+    Database.initialize()
+    PlayerStore.init()
+    HomeStore.init()
     MasterDispatcher.init()
     SpatialCache.init()
     initPlayerCache()          // player name cache + GC interval

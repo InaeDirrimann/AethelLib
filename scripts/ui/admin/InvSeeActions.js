@@ -113,7 +113,11 @@ function _deliverAdminItem(viewer, target, adminSlot, chosen, targetInv) {
 
     if (remainder && remainder.amount > 0) {
         const transferred = chosen.item.amount - remainder.amount
-        if (transferred > 0) adminSlot.amount -= transferred
+        if (transferred > 0) {
+            const updated = chosen.item.clone()
+            updated.amount = chosen.item.amount - transferred
+            adminSlot.setItem(updated)
+        }
         viewer.sendMessage(`\u00A7e${target.name}'s inventory was partially full. Delivered \u00A7a${transferred}x\u00A7e items.`)
     } else {
         adminSlot.setItem(undefined)

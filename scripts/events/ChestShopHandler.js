@@ -65,7 +65,7 @@ export function init() {
 
                 // check if this chest is already being used by another shop.
                 const ChestShopStore = Kernel.get("chestShopStore")
-                const existing = ChestShopStore.findShopByChestLocation(chest.location)
+                const existing = ChestShopStore.findShopByChestLocation(chest.location, chest.dimension?.id)
                 if (existing) {
                     player.sendMessage("\u00A7c\u00A7l» \u00A77This chest is already being used for a shop.");
                     return
@@ -105,7 +105,7 @@ export function init() {
 
         const ChestShopStore = Kernel.get("chestShopStore")
         // check if this specific sign is registered as a shop.
-        const shop = ChestShopStore.getShop(block.location)
+        const shop = ChestShopStore.getShop(block.location, block.dimension?.id)
         if (!shop) return
 
         // cancel the native event so the player doesn't open the 'edit sign' UI.
@@ -149,7 +149,7 @@ export function init() {
         
         // if they are breaking a sign.
         if (block.typeId.includes("sign")) {
-            const shop = ChestShopStore.getShop(block.location)
+            const shop = ChestShopStore.getShop(block.location, block.dimension?.id)
             // if it's a shop and they don't own it, block them.
             if (shop && shop.ownerId !== player.id) {
                 event.cancel = true
@@ -159,7 +159,7 @@ export function init() {
 
             // if it is their shop, unregister it from the database.
             if (shop && shop.ownerId === player.id) {
-                ChestShopStore.removeShop(block.location)
+                ChestShopStore.removeShop(block.location, block.dimension?.id)
                 Kernel.system.run(() => player.sendMessage("\u00A7a\u00A7l» \u00A7fShop removed."));
             }
 
@@ -167,7 +167,7 @@ export function init() {
         }
 
         // if they are breaking a container (chest/barrel).
-        const linkedShop = ChestShopStore.findShopByChestLocation(block.location)
+        const linkedShop = ChestShopStore.findShopByChestLocation(block.location, block.dimension?.id)
         // if this container is linked to a shop they don't own, block them.
         if (linkedShop && linkedShop.ownerId !== player.id) {
             event.cancel = true
@@ -498,6 +498,7 @@ async function showSetupUI(player, shopType, signLocation, chestLocation) {
         price,
         quantity,
         type: shopType,
+        dimensionId: player.dimension?.id || "minecraft:overworld",
         signLocation,
         chestLocation
     })

@@ -36,14 +36,14 @@ export function init() {
  */
 export function createClaim(player, location, radius = 1) {
     const ClaimStore = Kernel.get("claimStore")
-    const centerChunk = ClaimStore.locationToChunkKey(location)
+    const dim = player?.dimension?.id || location?.dimension?.id || "minecraft:overworld"
+    const centerChunk = ClaimStore.locationToChunkKey(location, dim)
+    const { chunkX: centerX, chunkZ: centerZ } = ClaimStore.parseChunkKey(centerChunk)
     const playerId = player.id
 
     for (let x = -radius; x <= radius; x++) {
         for (let z = -radius; z <= radius; z++) {
-            const chunkKey = centerChunk.split(/[_,]/).map((coord, i) => 
-                parseInt(coord) + (i === 0 ? x : z)
-            ).join(',')
+            const chunkKey = `${dim}:${centerX + x},${centerZ + z}`
             
             if (ClaimStore.getClaim(chunkKey)) {
                 player.sendMessage("\u00A7c\u00A7l» \u00A77This area is already claimed!");
@@ -55,9 +55,7 @@ export function createClaim(player, location, radius = 1) {
 
     for (let x = -radius; x <= radius; x++) {
         for (let z = -radius; z <= radius; z++) {
-            const chunkKey = centerChunk.split(/[_,]/).map((coord, i) => 
-                parseInt(coord) + (i === 0 ? x : z)
-            ).join(',')
+            const chunkKey = `${dim}:${centerX + x},${centerZ + z}`
             
             ClaimStore.setClaim(chunkKey, {
                 ownerId: playerId,
@@ -83,7 +81,8 @@ export function removeClaim(player, location) {
         player.sendMessage("\u00A7c\u00A7l» \u00A77Claim system is currently unavailable.");
         return false;
     }
-    const chunkKey = ClaimStore.locationToChunkKey(location)
+    const dim = player?.dimension?.id || location?.dimension?.id || "minecraft:overworld"
+    const chunkKey = ClaimStore.locationToChunkKey(location, dim)
     const playerId = player.id
 
     if (!ClaimStore.isOwner(chunkKey, playerId)) {

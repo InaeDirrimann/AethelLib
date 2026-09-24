@@ -14,9 +14,10 @@ export async function showCategoryUI(player, category) {
             ? `\u00A77Browsing ${items.length} nodes in vector.`
             : "\u00A7cMANIFEST DECOMMISSIONED: No items found in this vector.")
         
+    let sortedItems = []
     if (items.length > 0) {
         // Sort items by priority (Industrial Catalog Optimization)
-        const sortedItems = [...items].sort((a, b) => (a.priority || 99) - (b.priority || 99))
+        sortedItems = [...items].sort((a, b) => (a.priority || 99) - (b.priority || 99))
         
         sortedItems.forEach(item => {
             const id = item.itemId || "minecraft:stone"
@@ -41,6 +42,6 @@ export async function showCategoryUI(player, category) {
         return
     }
 
-    const selected = items[res.selection]
+    const selected = sortedItems[res.selection]
     Kernel.system.run(() => showBuyConfirmation(player, { ...selected, id: selected.itemId }))
 }

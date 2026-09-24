@@ -25,8 +25,10 @@ export async function showBuyConfirmation(player, item) {
     const [amount, confirm] = res.formValues
     if (!confirm) return
 
-    await ShopService.buy(player, item, amount)
-    Kernel.system.run(() => showShopUI(player))
+    const success = await ShopService.buy(player, item, amount)
+    if (success) {
+        Kernel.system.run(() => showShopUI(player))
+    }
 }
 
 export async function showSellConfirmation(player, item) {
@@ -42,8 +44,10 @@ export async function showSellConfirmation(player, item) {
     const [amount, confirm] = res.formValues
     if (!confirm) return
 
-    await ShopService.sell(player, item, amount)
-    Kernel.system.run(() => showShopUI(player))
+    const success = await ShopService.sell(player, item, amount)
+    if (success) {
+        Kernel.system.run(() => showShopUI(player))
+    }
 }
 
 export async function handleQuickSell(player) {

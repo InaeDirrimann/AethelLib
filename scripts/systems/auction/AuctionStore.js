@@ -1,4 +1,5 @@
 import { Kernel } from "../../core/Kernel.js"
+import { EconomyStore } from "../economy/EconomyStore.js"
 
 /*
  * AUCTION_DATA_CONTROLLER
@@ -82,7 +83,7 @@ export class AuctionStore {
     /* 
      * BID_PROTOCOL
      */
-    static placeBid(auctionId, bidderId, bidderName, bidAmount) {
+    static async placeBid(auctionId, bidderId, bidderName, bidAmount) {
         const auctions = this.getAuctions()
         const auction = auctions.find(a => a.id === auctionId)
 
@@ -93,7 +94,7 @@ export class AuctionStore {
         if (bidAmount <= auction.currentBid) return { success: false, message: `INSUFFICIENT_BID: MIN_BID: ${auction.currentBid + 1}` }
 
         if (auction.currentBidder && auction.currentBidder !== bidderId) {
-            this.refundBid(auction.currentBidder, auction.currentBid)
+            await this.refundBid(auction.currentBidder, auction.currentBid)
         }
 
         auction.currentBid = bidAmount
@@ -107,7 +108,7 @@ export class AuctionStore {
     /* 
      * ACQUISITION_PROTOCOL
      */
-    static buyNow(auctionId, buyerId, buyerName) {
+    static async buyNow(auctionId, buyerId, buyerName) {
         const auctions = this.getAuctions()
         const auction = auctions.find(a => a.id === auctionId)
 
@@ -119,9 +120,15 @@ export class AuctionStore {
         const buyerBalance = this.getPlayerBalance(buyerId)
         if (buyerBalance < auction.buyNowPrice) return { success: false, message: "INSUFFICIENT_LIQUIDITY" }
 
-        if (!this.removePlayerMoney(buyerId, auction.buyNowPrice)) return { success: false, message: "PAYMENT_FAILURE" }
+        const deducted = await this.removePlayerMoney(buyerId, auction.buyNowPrice)
+        if (!deducted) return { success: false, message: "PAYMENT_FAILURE" }
 
-        this.addPlayerMoney(auction.sellerId, auction.buyNowPrice)
+        // Refund any active bidder before settling
+        if (auction.currentBidder && auction.currentBidder !== buyerId) {
+            await this.refundBid(auction.currentBidder, auction.currentBid)
+        }
+
+        await this.addPlayerMoney(auction.sellerId, auction.buyNowPrice)
 
         auction.status = "sold"
         auction.buyerId = buyerId
@@ -135,15 +142,15 @@ export class AuctionStore {
     /* 
      * EXPIRATION_SETTLEMENT
      */
-    static endExpiredAuctions() {
+    static async endExpiredAuctions() {
         const auctions = this.getAuctions()
         const now = Date.now()
         const endedAuctions = []
 
-        auctions.forEach(auction => {
+        for (const auction of auctions) {
             if (auction.status === "active" && now > auction.endTime) {
                 if (auction.currentBidder) {
-                    this.addPlayerMoney(auction.sellerId, auction.currentBid)
+                    await this.addPlayerMoney(auction.sellerId, auction.currentBid)
                     auction.status = "sold"
                     auction.buyerId = auction.currentBidder
                     auction.buyerName = auction.currentBidderName
@@ -153,7 +160,7 @@ export class AuctionStore {
                 }
                 endedAuctions.push(auction)
             }
-        })
+        }
 
         if (endedAuctions.length > 0) this.saveAuctions(auctions)
         return endedAuctions
@@ -176,52 +183,26 @@ export class AuctionStore {
     /* 
      * REFUND_VECTOR
      */
-    static refundBid(playerId, amount) {
-        this.addPlayerMoney(playerId, amount)
+    static async refundBid(playerId, amount) {
+        return await EconomyStore.addMoney(playerId, amount)
     }
 
     /* 
      * BALANCE_QUERY
      */
     static getPlayerBalance(playerId) {
-        try {
-            const Database = Kernel.get("database")
-            const balance = Database.get(`player:${playerId}:money`)
-            return typeof balance === 'number' ? balance : 1000
-        } catch (error) {
-            console.error(`[AuctionStore] BALANCE_QUERY_FAILURE: ${error}`)
-            return 1000
-        }
+        return EconomyStore.getBalance(playerId)
     }
 
     /* 
      * BALANCE_MUTATION
      */
-    static addPlayerMoney(playerId, amount) {
-        try {
-            const Database = Kernel.get("database")
-            const key = `player:${playerId}:money`
-            const currentBalance = this.getPlayerBalance(playerId)
-            Database.set(key, currentBalance + amount)
-            return true
-        } catch (error) {
-            console.error(`[AuctionStore] BALANCE_INJECTION_FAILURE: ${error}`)
-            return false
-        }
+    static async addPlayerMoney(playerId, amount) {
+        return await EconomyStore.addMoney(playerId, amount)
     }
 
-    static removePlayerMoney(playerId, amount) {
-        try {
-            const Database = Kernel.get("database")
-            const key = `player:${playerId}:money`
-            const currentBalance = this.getPlayerBalance(playerId)
-            if (currentBalance < amount) return false
-            Database.set(key, currentBalance - amount)
-            return true
-        } catch (error) {
-            console.error(`[AuctionStore] BALANCE_EXTRACTION_FAILURE: ${error}`)
-            return false
-        }
+    static async removePlayerMoney(playerId, amount) {
+        return await EconomyStore.removeMoney(playerId, amount)
     }
 
     /* 
@@ -270,20 +251,34 @@ export class AuctionStore {
         const auction = auctions[index]
         if (auction.status === "active") return { success: false, message: "NODE_STILL_ACTIVE" }
 
-        if (auction.status === "sold" && auction.buyerId !== claimantId && auction.sellerId !== claimantId) {
+        if (auction.status === "sold") {
+            if (auction.buyerId !== claimantId) return { success: false, message: "UNAUTHORIZED_CLAIM" }
+        } else if (auction.status === "expired") {
+            if (auction.sellerId !== claimantId) return { success: false, message: "UNAUTHORIZED_CLAIM" }
+        } else {
             return { success: false, message: "UNAUTHORIZED_CLAIM" }
         }
 
-        // 🔥 ACTUALLY GIVE THE ITEM!
+        // Give the item to online claimant or abort without deleting auction
         const player = Kernel.world.getAllPlayers().find(p => p.id === claimantId);
-        if (player) {
-            const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container; // inv?.
-            let remaining = auction.quantity;
-            while (remaining > 0) {
-                const take = Math.min(remaining, 64);
-                inv.addItem(new Kernel.ItemStack(auction.itemId, take));
-                remaining -= take;
+        if (!player) {
+            return { success: false, message: "PLAYER_OFFLINE" };
+        }
+        const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container;
+        if (!inv) return { success: false, message: "INVENTORY_UNAVAILABLE" };
+
+        let remaining = auction.quantity;
+        while (remaining > 0) {
+            const take = Math.min(remaining, 64);
+            const leftover = inv.addItem(new Kernel.ItemStack(auction.itemId, take));
+            if (leftover && leftover.amount > 0) {
+                try {
+                    player.dimension.spawnItem(leftover, player.location);
+                } catch (e) {
+                    console.error(`[AuctionStore] Leftover drop error: ${e}`);
+                }
             }
+            remaining -= take;
         }
 
         auctions.splice(index, 1)

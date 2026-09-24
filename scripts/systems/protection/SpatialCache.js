@@ -15,7 +15,7 @@ const ALL_PERMS = PERMISSIONS.BUILD | PERMISSIONS.CONTAINERS | PERMISSIONS.DOORS
 function spawnChunkBorderParticles(player, chunkKey, isOwner, isTrusted) {
     try {
         const dim = player.dimension;
-        const [chunkX, chunkZ] = chunkKey.split(/[_,]/).map(Number);
+        const { chunkX, chunkZ } = ClaimStore.parseChunkKey(chunkKey);
         const minX = chunkX * 16;
         const maxX = minX + 16;
         const minZ = chunkZ * 16;
@@ -58,7 +58,7 @@ export const SpatialCache = {
         // Trace player coordinate updates at 20 ticks frequency
         Kernel.system.runInterval(() => {
             for (const player of Kernel.world.getAllPlayers()) {
-                const currentKey = ClaimStore.locationToChunkKey(player.location);
+                const currentKey = ClaimStore.locationToChunkKey(player.location, player.dimension?.id);
                 const cached = this.playerChunkStates.get(player.id);
                 const claim = ClaimStore.getClaim(currentKey);
                 const isOwner = claim ? claim.ownerId === player.id : false;
@@ -146,7 +146,7 @@ export const SpatialCache = {
     },
 
     hasPermission(player, location, requiredPermission) {
-        const targetKey = ClaimStore.locationToChunkKey(location);
+        const targetKey = ClaimStore.locationToChunkKey(location, player?.dimension?.id);
         const cached = this.playerChunkStates.get(player.id);
 
         if (cached && cached.chunkKey === targetKey) {

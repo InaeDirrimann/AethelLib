@@ -6,10 +6,20 @@ const claimCache = new Map()
 const CACHE_TTL = 300000 // 5m
 
 export const ClaimStore = {
-    locationToChunkKey(location) {
+    locationToChunkKey(location, dimensionId = null) {
+        const dim = dimensionId || location?.dimension?.id || location?.dimensionId || "minecraft:overworld"
         const chunkX = Math.floor(location.x >> 4)
         const chunkZ = Math.floor(location.z >> 4)
-        return `${chunkX},${chunkZ}`
+        return `${dim}:${chunkX},${chunkZ}`
+    },
+
+    parseChunkKey(chunkKey) {
+        if (!chunkKey) return { dimensionId: "minecraft:overworld", chunkX: 0, chunkZ: 0 }
+        const lastColon = chunkKey.lastIndexOf(":")
+        const dim = lastColon !== -1 ? chunkKey.slice(0, lastColon) : "minecraft:overworld"
+        const coords = lastColon !== -1 ? chunkKey.slice(lastColon + 1) : chunkKey
+        const [chunkX, chunkZ] = coords.split(",").map(Number)
+        return { dimensionId: dim, chunkX: isNaN(chunkX) ? 0 : chunkX, chunkZ: isNaN(chunkZ) ? 0 : chunkZ }
     },
 
     getClaim(chunkKey) {

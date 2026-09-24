@@ -30,7 +30,7 @@ export const SellCommand = {
     // | entry point for the liquidation vector. routes to UI if no args,         |
     // | otherwise processes direct item removal and payout.                      |
     // ----------------------------------------------------------------------------
-    execute(_data, player, args) {
+    async execute(_data, player, args) {
         // case 1: no arguments. trigger the visual sell management dashboard.
         if (args.length === 0) {
             showSellMenu(player)
@@ -65,7 +65,7 @@ export const SellCommand = {
 
         // step 3: transaction execution.
         // trigger the removal and payout sequence.
-        const transaction = SellStore.sellItem(player, item.id, quantity)
+        const transaction = await SellStore.sellItem(player, item.id, quantity)
         
         if (transaction.success) {
             player.sendMessage(`\u00A7a\u00A7l» \u00A7f${transaction.message}`);
@@ -91,7 +91,7 @@ function showSellMenu(player) {
     Kernel.system.run(async () => {
         const res = await UIUtils.showForm(player, form)
         if (res.canceled) return
-        if (res.selection === 0) quickSell(player)
+        if (res.selection === 1) quickSell(player)
         else showBrowseInventory(player)
     })
 }
@@ -100,7 +100,7 @@ function showSellMenu(player) {
 // | function: quickSell                                                      |
 // | liquidates the item currently held in the player's primary slot.         |
 // ----------------------------------------------------------------------------
-function quickSell(player) {
+async function quickSell(player) {
     try {
         // fetch item from current slot.
         const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container
@@ -125,7 +125,7 @@ function quickSell(player) {
         }
 
         // execute transaction.
-        const transaction = SellStore.sellItem(player, selectedItem.typeId, selectedItem.amount)
+        const transaction = await SellStore.sellItem(player, selectedItem.typeId, selectedItem.amount)
         
         if (transaction.success) {
             player.sendMessage(`\u00A7a\u00A7l» \u00A7f${transaction.message}`);
@@ -218,7 +218,7 @@ function showSellDialog(player, item) {
         // parse quantity from input field index 4.
         const quantity = parseInt(String(res.formValues[4]))
         if (quantity && quantity > 0) {
-            const transaction = SellStore.sellItem(player, item.id, quantity)
+            const transaction = await SellStore.sellItem(player, item.id, quantity)
                     
             if (transaction.success) {
                 player.sendMessage(`\u00A7a\u00A7l» \u00A7f${transaction.message}`);

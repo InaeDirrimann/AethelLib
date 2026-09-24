@@ -30,7 +30,7 @@ export function init() {
  * @param {number} requiredPermission - The numeric auth-node required.
  */
 function isBlockProtected(block, playerId, requiredPermission) {
-    const chunkKey = ClaimStore.locationToChunkKey(block.location)
+    const chunkKey = ClaimStore.locationToChunkKey(block.location, block.dimension?.id)
     const claim = ClaimStore.getClaim(chunkKey)
     
     /* 
@@ -49,7 +49,7 @@ function isBlockProtected(block, playerId, requiredPermission) {
 function isEntityProtected(entity, playerId, requiredPermission) {
     if (!entity.location) return false
     
-    const chunkKey = ClaimStore.locationToChunkKey(entity.location)
+    const chunkKey = ClaimStore.locationToChunkKey(entity.location, entity.dimension?.id)
     const claim = ClaimStore.getClaim(chunkKey)
     
     if (!claim) return false 

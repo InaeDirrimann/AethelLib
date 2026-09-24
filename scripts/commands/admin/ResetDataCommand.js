@@ -147,6 +147,11 @@ export const ResetDataCommand = {
 async function resetMoney() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        const playerUuids = Database.get("ae:player_index") || []
+        for (const uuid of playerUuids) {
+            Database.delete(`player:${uuid}:money`)
+        }
         Database.delete("ae:economy_data")
         return true
     } catch (error) { return false }
@@ -155,6 +160,15 @@ async function resetMoney() {
 async function resetHomes() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        const playerUuids = Database.get("ae:player_index") || []
+        for (const uuid of playerUuids) {
+            const homeList = Database.get(`player:${uuid}:homeList`) || {}
+            for (const name of Object.keys(homeList)) {
+                Database.delete(`player:${uuid}:home:${name}`)
+            }
+            Database.delete(`player:${uuid}:homeList`)
+        }
         Database.delete("ae:homes_data")
         return true
     } catch (error) { return false }
@@ -163,6 +177,8 @@ async function resetHomes() {
 async function resetWarps() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        Database.delete("warp:list")
         Database.delete("ae:warps")
         Database.delete("ae:warp:list")
         return true
@@ -172,6 +188,7 @@ async function resetWarps() {
 async function resetBans() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
         Database.delete("ae:bans")
         return true
     } catch (error) { return false }
@@ -180,6 +197,8 @@ async function resetBans() {
 async function resetSellPrices() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        Database.delete("ae:sellPrices")
         Database.delete("ae:sell_prices")
         return true
     } catch (error) { return false }
@@ -188,8 +207,11 @@ async function resetSellPrices() {
 async function resetShop() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        Database.delete("ae:shopData")
         Database.delete("ae:shop_data")
         Database.delete("ae:shop_items")
+        Database.delete("shop:categories")
         return true
     } catch (error) { return false }
 }
@@ -197,6 +219,12 @@ async function resetShop() {
 async function resetRanks() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
+        const rankList = Database.get("rank:list") || []
+        for (const tag of rankList) {
+            Database.delete(`rank:def:${tag}`)
+        }
+        Database.delete("rank:list")
         Database.delete("ae:rank:list")
         return true
     } catch (error) { return false }
@@ -205,6 +233,7 @@ async function resetRanks() {
 async function resetFloatingText() {
     try {
         const Database = Kernel.get("database")
+        if (!Database) return false
         Database.delete("ae:floatingtexts")
         return true
     } catch (error) { return false }

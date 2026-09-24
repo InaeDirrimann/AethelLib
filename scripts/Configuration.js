@@ -47,9 +47,9 @@ export const Configuration = {
     },
 
     /*
-     * ECONOMIC_SUBSYSTEM_PARAMETERS
-     * CURRENCY_SYMBOL: The string manifest for industrial liquidity.
-     * STARTING_BALANCE: Initial credit injection for uncalibrated entities.
+     * Economy settings
+     * CURRENCY_SYMBOL: Currency display symbol (e.g. '$').
+     * STARTING_BALANCE: Initial balance for new players on first spawn.
      */
     get CURRENCY_SYMBOL() {
         return SettingsStore.get("currencySymbol")

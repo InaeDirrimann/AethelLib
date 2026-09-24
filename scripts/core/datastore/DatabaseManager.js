@@ -19,12 +19,14 @@ export class DatabaseManager {
         
         // tracks if the ghost purger is already running to prevent overlap.
         this.isPurgingGhosts = false
-        
-        this.initialize()
+        this._initialized = false
     }
 
     // initialize: registers periodic cache cleanup, shutdown flush hook, and dispatches WAL recovery + migration.
     initialize() {
+        if (this._initialized) return
+        this._initialized = true
+
         // run cleanup every 20 minutes to clear the cache.
         Kernel.system.runInterval(() => {
             this.cleanupExpiredEntries()

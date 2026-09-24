@@ -18,6 +18,7 @@ export const TempbanCommand = {
     permission: "essentials.admin.ban",
     // command category.
     category: "admin",
+    native: false,
     
     // native parameter definitions for the command parser.
     parameters: [

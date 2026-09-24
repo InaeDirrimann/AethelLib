@@ -9,7 +9,7 @@
     "lint:check": "eslint scripts/**/*.js",
     "build": "echo 'Build complete - ready for BDS testing'",
     "dev": "echo 'Start BDS server and connect for testing'",
-    "test": "powershell -ExecutionPolicy Bypass -File .\\tools\\test.ps1"
+    "test": "node --test test/suite.test.js"
   },
   "devDependencies": {
     "@minecraft/server": "2.11.0-beta.1.26.50-preview.27",

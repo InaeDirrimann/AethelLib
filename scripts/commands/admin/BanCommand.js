@@ -14,6 +14,7 @@ export const BanCommand = {
     usage: "/ae:ban [player] [duration] [reason]",
     permission: "essentials.ban",
     category: "Admin",
+    native: false,
     
     // Native parameter definitions for autocomplete in Bedrock C++
     params: [

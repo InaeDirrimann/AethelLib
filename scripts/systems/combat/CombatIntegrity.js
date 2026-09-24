@@ -23,23 +23,19 @@ export function init() {
         const hurtEntity = event.hurtEntity
         const damagingEntity = event.damageSource?.damagingEntity
 
-        if (hurtEntity?.typeId === "minecraft:player") {
+        if (hurtEntity?.typeId === "minecraft:player" && damagingEntity?.typeId === "minecraft:player") {
             const currentTick = Kernel.system.currentTick
             combatState.set(hurtEntity.id, currentTick + COMBAT_DURATION)
-
-            if (damagingEntity?.typeId === "minecraft:player") {
-                combatState.set(damagingEntity.id, currentTick + COMBAT_DURATION)
-            }
+            combatState.set(damagingEntity.id, currentTick + COMBAT_DURATION)
 
             Kernel.system.run(() => {
                 if (hurtEntity.isValid && hurtEntity.typeId === "minecraft:player") {
                     /** @type {import("@minecraft/server").Player} */ (hurtEntity).onScreenDisplay.setActionBar("\u00A7c\u00A7l» \u00A7eIn Combat! \u00A7cDo not leave! \u00A7l«")
                 }
-                if (damagingEntity?.isValid && damagingEntity.typeId === "minecraft:player") {
+                if (damagingEntity.isValid && damagingEntity.typeId === "minecraft:player") {
                     /** @type {import("@minecraft/server").Player} */ (damagingEntity).onScreenDisplay.setActionBar("\u00A7c\u00A7l» \u00A7eIn Combat! \u00A7cDo not leave! \u00A7l«")
                 }
             })
-
         }
     })
 

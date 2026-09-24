@@ -29,7 +29,8 @@ import {
     createClaim,
     removeClaim,
     trustPlayer,
-    untrustPlayer
+    untrustPlayer,
+    PERMISSIONS
 } from "../../systems/protection/ClaimService.js"
 import { Kernel } from "../../core/Kernel.js"
 
@@ -63,16 +64,17 @@ function checkClaimQuota(player, radius) {
 }
 
 function parsePermissions(permString) {
-    if (!permString) return 15  // default: full clearance (build+chests+doors+containers)
+    if (!permString) return 15  // default: full clearance
     let permissions = 0
     const parts = permString.toLowerCase().split(",")
     for (const part of parts) {
         switch (part.trim()) {
-            case "build":      permissions |= 1;  break
-            case "chests":     permissions |= 2;  break
-            case "doors":      permissions |= 4;  break
-            case "containers": permissions |= 8;  break
-            case "all":        permissions  = 15; break
+            case "build":      permissions |= PERMISSIONS.BUILD;      break
+            case "chests":
+            case "containers": permissions |= PERMISSIONS.CONTAINERS; break
+            case "doors":      permissions |= PERMISSIONS.DOORS;      break
+            case "redstone":   permissions |= PERMISSIONS.REDSTONE;   break
+            case "all":        permissions  = 15;                     break
         }
     }
     return permissions

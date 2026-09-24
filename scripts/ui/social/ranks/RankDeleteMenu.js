@@ -12,7 +12,7 @@ export class RankDeleteMenu {
             .button2("§cNo, Cancel");
 
         const res = await UIUtils.showForm(player, form);
-        if (res.canceled || res.selection !== 0) {
+        if (res.canceled || res.selection !== 1) {
             if (backCallback) Kernel.system.runTimeout(backCallback, 5);
             return;
         }

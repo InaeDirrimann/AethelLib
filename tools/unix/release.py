@@ -220,12 +220,16 @@ def main():
     zip_folder(bp_temp, bp_zip)
     zip_folder(rp_temp, rp_zip)
 
-    # Packaging final .mcaddon (standard ZIP container, no ZIP64)
-    print("[Packager] Packaging final .mcaddon...")
+    # Packaging final .mcaddon (direct folder tree, standard ZIP container, no ZIP64)
+    print("[Packager] Packaging final .mcaddon (direct folder tree)...")
     addon_zip_path = os.path.join(build_dir, "AethelLib.mcaddon")
     with zipfile.ZipFile(addon_zip_path, 'w', zipfile.ZIP_DEFLATED, allowZip64=False) as addon_zip:
-        addon_zip.write(bp_zip, os.path.basename(bp_zip))
-        addon_zip.write(rp_zip, os.path.basename(rp_zip))
+        for folder_name, folder_path in [("AethelLib_BP", bp_temp), ("AethelLib_RP", rp_temp)]:
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.join(folder_name, os.path.relpath(full_path, folder_path))
+                    addon_zip.write(full_path, rel_path)
 
     # Define paths
     release_file = os.path.join(release_dir, f"AethelLib_v{new_version_str}.mcaddon")

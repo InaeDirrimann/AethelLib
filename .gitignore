@@ -25,3 +25,4 @@ tools/ship_payload.ps1
 tools/ship_shop.ps1
 tools/pack_codebase.ps1
 **/__pycache__/
+.agents

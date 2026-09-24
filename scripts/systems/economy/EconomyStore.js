@@ -171,22 +171,28 @@ export const EconomyStore = {
         const PlayerStore = Kernel.get("playerStore")
         const Database = Kernel.get("database")
 
-        const senderBalance = this.getBalance(sender)
-        const receiverBalance = this.getBalance(receiver)
-
-        if (senderBalance < amount) {
+        // Preliminary guard
+        if (this.getBalance(sender) < amount) {
             return false 
         }
 
         const first = sender.id < receiver.id ? sender : receiver
         const second = sender.id < receiver.id ? receiver : sender
 
-        if (Database) {
-            Database.writeWal(sender.id, receiver.id, amount, senderBalance, receiverBalance)
-        }
-
         return await PlayerStore.transaction(first, async () => {
             return await PlayerStore.transaction(second, async () => {
+                // Re-read fresh balances INSIDE the atomic lock to prevent TOCTOU double-spend
+                const senderBalance = this.getBalance(sender)
+                const receiverBalance = this.getBalance(receiver)
+
+                if (senderBalance < amount) {
+                    return false
+                }
+
+                if (Database) {
+                    Database.writeWal(sender.id, receiver.id, amount, senderBalance, receiverBalance)
+                }
+
                 return await this._commitTransfer(sender, receiver, amount, senderBalance, receiverBalance)
             })
         })

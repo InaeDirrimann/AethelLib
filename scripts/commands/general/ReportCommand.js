@@ -18,6 +18,7 @@ export const ReportCommand = {
     permission: "essentials.report",
     // command category.
     category: "Utility",
+    native: false,
     // native parameter definitions to allow player suggestions and multi-word reasons.
     parameters: [
         { name: "target", type: "player", optional: false },

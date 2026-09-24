@@ -22,7 +22,11 @@ export class ShopService {
             return false
         }
 
-        await EconomyStore.removeMoney(player, totalCost)
+        const deducted = await EconomyStore.removeMoney(player, totalCost)
+        if (!deducted) {
+            player.sendMessage(Lang.ERROR + `TRANSACTION FAILED: Insufficient funds or account locked.`)
+            return false
+        }
         this.giveItem(player, item.id, amount)
         player.sendMessage(Lang.SUCCESS + `ACQUIRED: ${amount}x ${item.name} for \u00A7a$${totalCost.toLocaleString()}.`)
         return true
@@ -50,10 +54,18 @@ export class ShopService {
      */
     static giveItem(player, itemId, amount) {
         const inv = player.getComponent(Kernel.EntityComponentTypes.Inventory)?.container // inv?.
+        if (!inv) return
         let remaining = amount
         while (remaining > 0) {
             const take = Math.min(remaining, 64)
-            inv.addItem(new Kernel.ItemStack(itemId, take))
+            const leftover = inv.addItem(new Kernel.ItemStack(itemId, take))
+            if (leftover && leftover.amount > 0) {
+                try {
+                    player.dimension.spawnItem(leftover, player.location)
+                } catch (e) {
+                    console.error(`[ShopService] Failed to spawn leftover item: ${e}`)
+                }
+            }
             remaining -= take
         }
     }

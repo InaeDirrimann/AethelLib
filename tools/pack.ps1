@@ -63,27 +63,33 @@ foreach ($License in $LicenseFiles) {
     }
 }
 
-# 3. Create .mcpack files using ZipFile (produces standard ZIP, not ZIP64)
-Write-Host "[Packager] Compressing Packs..." -ForegroundColor Cyan
-$BP_Pack = Join-Path $BuildDir "AethelLib_BP.mcpack"
-$RP_Pack = Join-Path $BuildDir "AethelLib_RP.mcpack"
+# 3. Create standalone .mcpack files in Output
+Write-Host "[Packager] Compressing standalone Packs..." -ForegroundColor Cyan
+$BP_Pack = Join-Path $OutputDir "AethelLib_BP.mcpack"
+$RP_Pack = Join-Path $OutputDir "AethelLib_RP.mcpack"
+if (Test-Path $BP_Pack) { Remove-Item -Path $BP_Pack -Force }
+if (Test-Path $RP_Pack) { Remove-Item -Path $RP_Pack -Force }
 
 [System.IO.Compression.ZipFile]::CreateFromDirectory($BP_Temp, $BP_Pack, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 [System.IO.Compression.ZipFile]::CreateFromDirectory($RP_Temp, $RP_Pack, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 
-# 4. Create final .mcaddon (a zip containing both .mcpack files)
-Write-Host "[Packager] Creating final AethelLib.mcaddon..." -ForegroundColor Green
+# 4. Create final .mcaddon (direct folder tree for seamless 1-click import in Bedrock)
+Write-Host "[Packager] Creating final unified AethelLib.mcaddon (direct folder tree)..." -ForegroundColor Green
 $AddonStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create)
 $AddonZip    = [System.IO.Compression.ZipArchive]::new($AddonStream, [System.IO.Compression.ZipArchiveMode]::Create)
 
-foreach ($Pack in @($BP_Pack, $RP_Pack)) {
-    $EntryName = [System.IO.Path]::GetFileName($Pack)
-    $Entry     = $AddonZip.CreateEntry($EntryName, [System.IO.Compression.CompressionLevel]::Optimal)
-    $EntryStream = $Entry.Open()
-    $PackStream  = [System.IO.File]::OpenRead($Pack)
-    $PackStream.CopyTo($EntryStream)
-    $PackStream.Dispose()
-    $EntryStream.Dispose()
+$PacksToBundle = @(
+    @{ Folder = "AethelLib_BP"; Path = $BP_Temp },
+    @{ Folder = "AethelLib_RP"; Path = $RP_Temp }
+)
+
+foreach ($Target in $PacksToBundle) {
+    $Files = Get-ChildItem -Path $Target.Path -Recurse -File
+    foreach ($File in $Files) {
+        $RelativePath = $File.FullName.Substring($Target.Path.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar).Replace("\", "/")
+        $ZipEntryPath = "$($Target.Folder)/$RelativePath"
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($AddonZip, $File.FullName, $ZipEntryPath, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+    }
 }
 
 $AddonZip.Dispose()

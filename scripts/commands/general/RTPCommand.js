@@ -81,9 +81,13 @@ async function executeRtpWorkflow(player, maxRange) {
             const targetZ = Math.floor(initialLocation.z + Math.sin(angle) * distance);
 
             // Stage player high above the candidate to trigger Bedrock chunk stream
+            const isNether = dimension.id?.includes("nether");
+            const isEnd = dimension.id?.includes("the_end");
+            const stageY = isNether ? 80 : (isEnd ? 100 : 319);
+
             rawPlayer.addEffect?.("resistance", 160, { showParticles: false, amplifier: 255 });
             rawPlayer.addEffect?.("slow_falling", 160, { showParticles: false, amplifier: 1 });
-            rawPlayer.teleport({ x: targetX + 0.5, y: 319, z: targetZ + 0.5 }, { dimension });
+            rawPlayer.teleport({ x: targetX + 0.5, y: stageY, z: targetZ + 0.5 }, { dimension });
 
             // Allow Bedrock chunk to load
             await new Promise(resolve => Kernel.system.runTimeout(resolve, 4));

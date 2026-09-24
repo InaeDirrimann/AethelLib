@@ -4,17 +4,23 @@ import { Configuration } from "../../Configuration.js"
 import { PlayerStore } from "../../core/store/PlayerStore.js"
 
 const PENDING_CONFIRMATIONS = new Map() // playerId -> { name, timestamp }
-
-Kernel.world.afterEvents.playerLeave.subscribe((ev) => {
-    PENDING_CONFIRMATIONS.delete(ev.playerId)
-})
-
+ 
 function resolvePlayerId(player) {
     if (!player) return null
     return typeof player === "string" ? player : (player.id || null)
 }
 
 export const HomeStore = {
+    _initialized: false,
+
+    init() {
+        if (this._initialized) return
+        this._initialized = true
+        Kernel.world.afterEvents.playerLeave.subscribe((ev) => {
+            PENDING_CONFIRMATIONS.delete(ev.playerId)
+        })
+    },
+
     async getHomes(player) {
         const id = resolvePlayerId(player)
         if (!id) return {}

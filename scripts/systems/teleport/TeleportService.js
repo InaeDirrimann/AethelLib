@@ -17,10 +17,10 @@ export const TeleportService = {
         if (!player || !player.isValid) return false
         const rawPlayer = player.__rawEntity__ || player;
 
-        LAST_POS_STORE.set(rawPlayer.id, {
+        const prevPos = {
             location: { ...rawPlayer.location },
             dimensionId: rawPlayer.dimension.id
-        })
+        };
 
         const targetDimId = dimensionId || rawPlayer.dimension.id;
         if (!this._isLocationSafe(destination, targetDimId)) {
@@ -38,6 +38,7 @@ export const TeleportService = {
                 dimension: targetDim,
                 keepVelocity: false
             })
+            LAST_POS_STORE.set(rawPlayer.id, prevPos);
             return true
         } catch (error) {
             console.error(`[TeleportService] MIGRATION_FAILURE: ${error}`)

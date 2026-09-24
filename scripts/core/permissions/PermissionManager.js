@@ -368,7 +368,6 @@ export class PermissionManager {
         if (!player) return false;
         try {
             if (player.isValid === false) return false;
-            if (typeof player.isOp === 'function' && player.isOp()) return true;
             if (typeof player.hasTag === 'function') {
                 if (player.hasTag("AE") || player.hasTag("ae") || player.hasTag("admin") || player.hasTag("Admin") || player.hasTag("op") || player.hasTag("OP")) {
                     return true;

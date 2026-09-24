@@ -158,7 +158,11 @@ export const CommandHandler = {
                     event.cancel = true;
                     const rawExpression = fullContent.slice(rawFirstWord.length).trim();
                     Kernel.system.run(async () => {
-                        await this._executeCommand(event.sender, rawCmdName, [rawExpression], "chat_raw");
+                        try {
+                            await this._executeCommand(event.sender, rawCmdName, [rawExpression], "chat_raw");
+                        } catch (err) {
+                            console.error(`[CommandHandler] Chat raw crash: ${err}`);
+                        }
                     });
                     return;
                 }
@@ -185,11 +189,15 @@ export const CommandHandler = {
                 event.cancel = true;
 
                 Kernel.system.run(async () => {
-                    const name = isNamespaced ? rawName.split(":")[1] : rawName;
-                    // For non-native commands, we pass the ENTIRE message content after the name
-                    // as the first argument to ensure no symbols/spaces are lost.
-                    const finalArgs = command.native === false ? [fullContent.slice(rawName.length).trim()] : args;
-                    await this._executeCommand(event.sender, name, finalArgs, "chat");
+                    try {
+                        const name = isNamespaced ? rawName.split(":")[1] : rawName;
+                        // For non-native commands, we pass the ENTIRE message content after the name
+                        // as the first argument to ensure no symbols/spaces are lost.
+                        const finalArgs = command.native === false ? [fullContent.slice(rawName.length).trim()] : args;
+                        await this._executeCommand(event.sender, name, finalArgs, "chat");
+                    } catch (err) {
+                        console.error(`[CommandHandler] Chat dispatch crash: ${err}`);
+                    }
                 });
                 return;
             }
@@ -197,8 +205,12 @@ export const CommandHandler = {
             // For custom prefix commands, always handle script-side
             if (prefix !== "/") {
                 Kernel.system.run(async () => {
-                    const name = isNamespaced ? rawName.split(":")[1] : rawName;
-                    await this._executeCommand(event.sender, name, args, "prefix");
+                    try {
+                        const name = isNamespaced ? rawName.split(":")[1] : rawName;
+                        await this._executeCommand(event.sender, name, args, "prefix");
+                    } catch (err) {
+                        console.error(`[CommandHandler] Prefix dispatch crash: ${err}`);
+                    }
                 });
             }
         }
@@ -218,7 +230,11 @@ export const CommandHandler = {
             if (!command) return
 
             Kernel.system.run(async () => {
-                await this._executeCommand(event.sourceEntity, command, args || [], "slash")
+                try {
+                    await this._executeCommand(event.sourceEntity, command, args || [], "slash")
+                } catch (err) {
+                    console.error(`[CommandHandler] Slash dispatch crash: ${err}`);
+                }
             })
         } catch (error) {
             console.error(`[CommandHandler] SCRIPT_EVENT_PARSE_FAILURE: ${error}`)

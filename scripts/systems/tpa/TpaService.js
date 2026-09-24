@@ -62,9 +62,9 @@ export const TpaService = {
                             .button2("\u00A7cDeny");
 
                         const res = await UIUtils.showForm(target, form);
-                        if (!res.canceled && res.selection === 0) {
+                        if (!res.canceled && res.selection === 1) {
                             this.acceptRequest(target);
-                        } else if (!res.canceled && res.selection === 1) {
+                        } else if (!res.canceled && res.selection === 0) {
                             this.denyRequest(target);
                         }
                     } catch (error) {

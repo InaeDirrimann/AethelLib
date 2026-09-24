@@ -9,14 +9,14 @@
     "format_version": 2,
     "header": {
         "name": "§6§lAethel§fLib §r§8• §7[RP] v1.1.5",
-        "description": "§8⚜ §6§lAethel§fLib §r§7- Obsidian-Glass UI Protocol §8[RP]§r\n§8» §fIndustrial Asset Vector §7v1.1.5",
+        "description": "§8⚜ §6§lAethel§fLib §r§7- UI Resources §8[RP]§r\n§8» §fVersion §7v1.1.5",
         "uuid": "a7b8c9d0-1234-5678-90ab-cdef12345678",
         "version": [1, 1, 5],
         "min_engine_version": [1, 26, 51]
     },
     "modules": [
         {
-            "description": "AethelLib Industrial UI Assets",
+            "description": "AethelLib UI Assets",
             "type": "resources",
             "uuid": "b8c9d0e1-2345-6789-01bc-def234567890",
             "version": [1, 1, 5]

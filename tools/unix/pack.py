@@ -43,7 +43,8 @@ def zip_folder(folder_path, output_zip):
                 zipf.write(full_path, rel_path)
 
 def main():
-    prompt_confirm()
+    if "-y" not in sys.argv and "--yes" not in sys.argv:
+        prompt_confirm()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     tools_dir = os.path.dirname(script_dir)
@@ -90,19 +91,24 @@ def main():
             else:
                 shutil.copy2(src, dst)
 
-    # 3. Create .mcpack files
-    print("[Packager] Compressing Packs...")
-    bp_zip = os.path.join(build_dir, "AethelLib_BP.mcpack")
-    rp_zip = os.path.join(build_dir, "AethelLib_RP.mcpack")
+    # 3. Create standalone .mcpack files in Output
+    print("[Packager] Compressing standalone Packs...")
+    bp_zip = os.path.join(output_dir, "AethelLib_BP.mcpack")
+    rp_zip = os.path.join(output_dir, "AethelLib_RP.mcpack")
 
     zip_folder(bp_temp, bp_zip)
     zip_folder(rp_temp, rp_zip)
 
-    # 4. Create final .mcaddon (standard ZIP container, no ZIP64)
-    print(f"{GREEN}[Packager] Creating final AethelLib.mcaddon...{RESET}")
+    # 4. Create final .mcaddon (direct pack folders, standard ZIP container, no ZIP64)
+    # Direct folder root allows Bedrock on mobile & desktop to import both packs simultaneously in a single pass.
+    print(f"{GREEN}[Packager] Creating final AethelLib.mcaddon (direct folder tree)...{RESET}")
     with zipfile.ZipFile(out_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=False) as addon_zip:
-        addon_zip.write(bp_zip, os.path.basename(bp_zip))
-        addon_zip.write(rp_zip, os.path.basename(rp_zip))
+        for folder_name, folder_path in [("AethelLib_BP", bp_temp), ("AethelLib_RP", rp_temp)]:
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.join(folder_name, os.path.relpath(full_path, folder_path))
+                    addon_zip.write(full_path, rel_path)
 
     # 5. Cleanup
     shutil.rmtree(build_dir)

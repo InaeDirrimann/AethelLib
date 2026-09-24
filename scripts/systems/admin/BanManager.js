@@ -111,7 +111,7 @@ function checkPlayerBan(player) {
                 
             Kernel.system.run(() => {
                 const safeName = player.name.replace(/"/g, '\\"');
-                try { Kernel.world.getDimension("overworld").runCommand(`kick "${safeName}" \u00A7c\u00A7lYou are banned!\n\u00A7eReason: ${activeBan.reason}\n\u00A77${durationText}`); } catch (e) {}
+                try { Kernel.world.getDimension("minecraft:overworld").runCommand(`kick "${safeName}" \u00A7c\u00A7lYou are banned!\n\u00A7eReason: ${activeBan.reason}\n\u00A77${durationText}`); } catch (e) {}
             })
 
         }

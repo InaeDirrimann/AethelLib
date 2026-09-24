@@ -86,7 +86,7 @@ export class SellStore {
      * Orchestrates the extraction of assets from the entity-inventory and 
      * the injection of credits into the liquidity-buffer.
      */
-    static sellItem(player, itemId, quantity) {
+    static async sellItem(player, itemId, quantity) {
         const item = MINECRAFT_ITEMS[itemId]
         if (!item) return { success: false, message: "Item cannot be sold." }
 
@@ -104,7 +104,8 @@ export class SellStore {
         if (!this.removePlayerItems(player, itemId, quantity)) return { success: false, message: "Failed to remove items from inventory." }
 
 
-        if (!this.addPlayerMoney(player.id, totalValue)) {
+        const added = await this.addPlayerMoney(player.id, totalValue)
+        if (!added) {
             this.givePlayerItems(player, itemId, quantity) // EMERGENCY_REFUND
             return { success: false, message: "Failed to add money to your account." }
         }
@@ -189,11 +190,16 @@ export class SellStore {
             }
             
             const { ItemStack } = Kernel
-            const itemStack = new ItemStack(itemId, quantity)
-            const leftover = container.addItem(itemStack)
-            
-            if (leftover && leftover.amount > 0) {
-                player.dimension.spawnItem(leftover, player.location)
+            let remaining = quantity
+            while (remaining > 0) {
+                const take = Math.min(remaining, 64)
+                const itemStack = new ItemStack(itemId, take)
+                const leftover = container.addItem(itemStack)
+                
+                if (leftover && leftover.amount > 0) {
+                    player.dimension.spawnItem(leftover, player.location)
+                }
+                remaining -= take
             }
             player.sendMessage(`\u00A7a\u00A7l» \u00A7fRefunded \u00A7e${quantity}x ${itemId}\u00A7f.`);
             return true
@@ -205,15 +211,15 @@ export class SellStore {
 
 
     /* 
-     * LIQUIDITY_MUTATION_VECTORS
+     * Balance helpers
      */
-    static addPlayerMoney(playerId, amount) {
+    static async addPlayerMoney(playerId, amount) {
         const player = Kernel.world.getAllPlayers().find(p => p.id === playerId)
         if (!player) return false
         
         const Economy = Kernel.get("economy")
-        Kernel.system.run(() => Economy.addMoney(player, amount))
-        return true
+        if (!Economy) return false
+        return await Economy.addMoney(player, amount)
     }
 
     static getPlayerBalance(playerId) {

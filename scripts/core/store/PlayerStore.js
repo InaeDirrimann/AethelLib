@@ -5,28 +5,34 @@ import { JournaledDb } from "../datastore/JournaledDatabase.js"
  * ENTITY_SPECIFIC_STORAGE_PROXY
  */
 
-// Keep name mapping synchronized for offline resolution
-Kernel.world.afterEvents.playerSpawn.subscribe((ev) => {
-    const { player } = ev
-    
-    // 1. Maintain case-insensitive name-to-UUID index and handle name changes
-    const oldName = JournaledDb.get(`player:${player.id}:name`)
-    if (oldName && oldName.toLowerCase() !== player.name.toLowerCase()) {
-        JournaledDb.delete(`playername:${oldName.toLowerCase()}`)
-    }
-    
-    JournaledDb.set(`player:${player.id}:name`, player.name)
-    JournaledDb.set(`playername:${player.name.toLowerCase()}`, player.id)
-    
-    // 2. Track registered players list
-    const allUuids = JournaledDb.get("ae:player_index") || []
-    if (!allUuids.includes(player.id)) {
-        allUuids.push(player.id)
-        JournaledDb.set("ae:player_index", allUuids)
-    }
-})
-
 export const PlayerStore = {
+    _initialized: false,
+
+    // Keep name mapping synchronized for offline resolution
+    init() {
+        if (this._initialized) return
+        this._initialized = true
+
+        Kernel.world.afterEvents.playerSpawn.subscribe((ev) => {
+            const { player } = ev
+            
+            // 1. Maintain case-insensitive name-to-UUID index and handle name changes
+            const oldName = JournaledDb.get(`player:${player.id}:name`)
+            if (oldName && oldName.toLowerCase() !== player.name.toLowerCase()) {
+                JournaledDb.delete(`playername:${oldName.toLowerCase()}`)
+            }
+            
+            JournaledDb.set(`player:${player.id}:name`, player.name)
+            JournaledDb.set(`playername:${player.name.toLowerCase()}`, player.id)
+            
+            // 2. Track registered players list
+            const allUuids = JournaledDb.get("ae:player_index") || []
+            if (!allUuids.includes(player.id)) {
+                allUuids.push(player.id)
+                JournaledDb.set("ae:player_index", allUuids)
+            }
+        })
+    },
 
     _resolveKey(id, key) {
         if (!key) return `player:${id}`

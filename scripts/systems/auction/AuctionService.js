@@ -16,19 +16,25 @@ export class AuctionService {
             return false
         }
 
-        const balance = await EconomyStore.getBalance(player)
+        const balance = EconomyStore.getBalance(player)
         if (balance < amount) {
             player.sendMessage(Lang.ERROR + "INSUFFICIENT LIQUIDITY.")
             return false
         }
 
-        const result = AuctionStore.placeBid(auction.id, player.id, player.name, amount)
+        const deducted = await EconomyStore.removeMoney(player, amount)
+        if (!deducted) {
+            player.sendMessage(Lang.ERROR + "TRANSACTION FAILED: Unable to hold bid funds.")
+            return false
+        }
+
+        const result = await AuctionStore.placeBid(auction.id, player.id, player.name, amount)
         if (result.success) {
-            await EconomyStore.removeMoney(player, amount)
             player.sendMessage(Lang.SUCCESS + `BID ACCEPTED: High bidder for ${auction.itemName}.`)
             return true
         }
-        
+
+        await EconomyStore.addMoney(player, amount)
         player.sendMessage(Lang.ERROR + `ERROR: ${result.message}`)
         return false
     }

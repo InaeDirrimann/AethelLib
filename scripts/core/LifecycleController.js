@@ -1,5 +1,5 @@
 /**
- * INDUSTRIAL_LIFECYCLE_CONTROLLER
+ * LifecycleController
  * ----------------------------------------------------------------------------
  * Prevents double-execution and memory leaks from multiple system 
  * initializations during script reloads.

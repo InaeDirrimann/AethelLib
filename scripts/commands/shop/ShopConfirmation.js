@@ -58,10 +58,9 @@ function clearPlayerTransaction(player) {
         if (existingId) {
             const trans = pendingTransactions.get(existingId);
             if (trans) {
-                const clearFn = system.clearRun || system.clearRunJob;
-                if (clearFn && trans.timerId !== undefined) {
+                if (trans.timerId !== undefined) {
                     try {
-                        clearFn(trans.timerId);
+                        system.clearRun(trans.timerId);
                     } catch (e) {}
                 }
                 pendingTransactions.delete(existingId);
@@ -108,13 +107,11 @@ export function initShopConfirmation() {
         system.run(() => {
             if (!player.isValid) return;
             
-            const clearFn = system.clearRun || system.clearRunJob;
-
             if (message === "Y") {
                 // Authorized
-                if (clearFn && transaction.timerId !== undefined) {
+                if (transaction.timerId !== undefined) {
                     try {
-                        clearFn(transaction.timerId);
+                        system.clearRun(transaction.timerId);
                     } catch (e) {}
                 }
                 pendingTransactions.delete(transactionId);
@@ -126,9 +123,9 @@ export function initShopConfirmation() {
                 }
             } else if (message === "N") {
                 // Revoked
-                if (clearFn && transaction.timerId !== undefined) {
+                if (transaction.timerId !== undefined) {
                     try {
-                        clearFn(transaction.timerId);
+                        system.clearRun(transaction.timerId);
                     } catch (e) {}
                 }
                 pendingTransactions.delete(transactionId);

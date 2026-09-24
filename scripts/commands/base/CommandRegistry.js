@@ -1,13 +1,11 @@
 /*
- * COMMAND_IDENTIFIER_REGISTRY
+ * CommandRegistry
  * ----------------------------------------------------------------------------
- * A high-performance, O(1) hash-map store for every active command module. 
- * This is the single source of truth for the Ghost Interpreter's resolution 
- * logic.
+ * Registry store for active command definitions and custom enums.
  */
 
-const commands = new Map(); // MASTER_COMMAND_BUFFER
-const enums = new Map(); // MASTER_ENUM_BUFFER
+const commands = new Map();
+const enums = new Map();
 
 export const CommandRegistry = {
     /**

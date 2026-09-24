@@ -81,7 +81,7 @@ async function handleBuyNow(player, auction) {
 
 
     const res = await UIUtils.showForm(player, confirm)
-    if (res.canceled || res.selection === 0) return
+    if (res.canceled || res.selection === 1) return
 
     await AuctionService.buyNow(player, auction)
 }

@@ -64,7 +64,14 @@ export class BanknoteHandler {
                     const added = await EconomyStore.addMoney(player, totalMoney);
                     if (!added) {
                         // Rollback item if transaction failed
-                        container.addItem(BanknoteStore.createBanknoteItem(noteValue));
+                        const rollbackItem = BanknoteStore.createBanknoteItem(noteValue);
+                        rollbackItem.amount = countToRedeem;
+                        const leftover = container.addItem(rollbackItem);
+                        if (leftover && leftover.amount > 0) {
+                            try {
+                                player.dimension.spawnItem(leftover, player.location);
+                            } catch (_) {}
+                        }
                         player.sendMessage("§c§l» §7Failed to deposit funds into your account.");
                         return;
                     }
