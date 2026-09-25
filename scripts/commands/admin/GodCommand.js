@@ -42,9 +42,28 @@ export const GodCommand = {
 // Must NOT run at module import time — Bedrock throws in early-execution mode.
 export function init() {
     Kernel.world.beforeEvents.entityHurt.subscribe((event) => {
-        const { hurtEntity } = event;
+        const { hurtEntity, damageSource } = event;
         if (hurtEntity && hurtEntity.typeId === "minecraft:player") {
             if (hurtEntity.hasTag("ae:god_mode") || hurtEntity.getDynamicProperty("ae:is_god") === true) {
+                // Check if the attacker is using the God Killer (Slasher of Heavens)
+                const attacker = damageSource?.damagingEntity;
+                if (attacker && attacker.typeId === "minecraft:player") {
+                    try {
+                        const equippable = attacker.getComponent("minecraft:equippable");
+                        const weapon = equippable?.getEquipment("Mainhand");
+                        if (weapon) {
+                            const weaponRegistry = Kernel.get("weaponRegistry");
+                            if (weaponRegistry && typeof weaponRegistry.shouldBypassGodMode === "function" && weaponRegistry.shouldBypassGodMode(weapon)) {
+                                // Bypasses god mode invulnerability via microkernel registration!
+                                return;
+                            }
+                            // Fallback check for legacy/standard named items
+                            if (weapon.typeId === "aethel:himmelsspalter" || (weapon.nameTag && weapon.nameTag.toLowerCase().includes("himmelsspalter"))) {
+                                return;
+                            }
+                        }
+                    } catch (e) {}
+                }
                 event.cancel = true;
             }
         }

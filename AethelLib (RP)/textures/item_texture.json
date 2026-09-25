@@ -1,0 +1,12 @@
+{
+  "resource_pack_name": "AethelLib",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "himmelsspalter": {
+      "textures": "textures/items/himmelsspalter"
+    },
+    "lohenklinge": {
+      "textures": "textures/items/lohenklinge"
+    }
+  }
+}

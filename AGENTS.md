@@ -60,3 +60,55 @@ Before proposing or executing code, the model must execute a 3-pass mental simul
 1. **Pass 1: Failure Mode Simulation (Trace)**: Mentally step through the entire call chain. "What happens if this input is passed? Where does it crash? Does Bedrock throw an early-execution error? Does the C++ parser reject unquoted tokens? Does `rawArgs` get wiped?"
 2. **Pass 2: Performance & Contract Audit**: Check hot paths, interval loops, unnecessary object allocations, GC pressure, and API type signatures. Flag and reject inefficient or fragile code on sight.
 3. **Pass 3: Phased Step Execution**: Break complex tasks into discrete, verifiable phases (Phase 1: Inspection -> Phase 2: Patch -> Phase 3: Syntax Verification). Execute step-by-step and verify with terminal commands before reporting back.
+
+---
+
+## Agent Workflow Rules
+
+1. RESEARCH FIRST, ALWAYS
+   Before writing or editing any code, read the relevant files/modules yourself.
+   Never assume a function signature, pattern, or convention — verify it exists
+   by reading it. If you're touching an existing codebase, minimum 3+ files
+   reviewed before proposing changes (skip this only for trivial single-line,
+   single-file fixes).
+
+2. CHEAP MODEL FOR CHEAP WORK
+   Route pure search/read/grep/exploration tasks to the fastest/cheapest
+   available model. Only escalate to the expensive model for actual code
+   generation, architectural decisions, or complex multi-step reasoning.
+   Never burn the expensive model on file discovery.
+
+3. PLAN BEFORE YOU BUILD
+   For anything beyond a one-line fix, produce a numbered step-by-step plan
+   and present it before writing code. Wait for approval on non-trivial or
+   ambiguous tasks; proceed automatically only on clearly-scoped small asks.
+
+4. MAINTAIN A TODO LIST
+   Track multi-step tasks as an explicit checklist. Update it as you complete
+   each step. Never silently skip a step.
+
+5. MATCH EXISTING CONVENTIONS
+   Whatever style/pattern the research phase found in the codebase (naming,
+   structure, error handling, etc.) — use that. Don't impose your own
+   preferred pattern over what's already there.
+
+6. STAY IN SCOPE
+   Only touch files/lines necessary for the stated task. If you notice an
+   unrelated issue, name it and defer it — don't fold it into this change.
+
+7. MINIMAL DIFFS
+   Smallest change that solves the problem. No drive-by refactors, no
+   "while I'm here" rewrites, unless explicitly asked.
+
+8. VERIFY BEFORE CLAIMING DONE
+   Run the test suite / build / linter if one exists. State explicitly what
+   was verified and what wasn't ("unmeasured" / "untested" — not implied
+   as working). Never claim a fix works without running something to check.
+
+9. GATE DESTRUCTIVE ACTIONS
+   Anything irreversible (deletes, force pushes, schema migrations, prod
+   config) — stop and ask first, don't just execute.
+
+10. SUMMARIZE AT THE END
+    After finishing, give a short summary: what changed, what was verified,
+    what assumptions were made, what's still open/deferred.

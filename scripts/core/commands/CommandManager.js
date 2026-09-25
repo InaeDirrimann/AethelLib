@@ -124,7 +124,8 @@ export const CommandManager = {
             "cooldown.chat", "cooldown.back", "cooldown.tpa", "cooldown.home", "cooldown.warp",
             "cooldown.rtp", "cooldown.command",
             "cost.back", "cost.tpa", "cost.home", "cost.warp", "cost.rtp",
-            "essentials.help", "essentials.info", "essentials.credit", "essentials.default"
+            "essentials.help", "essentials.info", "essentials.credit", "essentials.default",
+            "essentials.admin.smite", "essentials.admin.yeet", "essentials.admin.trail", "essentials.admin.himmelsspalter", "essentials.admin.lohen"
         ]);
 
         // Populate 'chatcolor' enum
